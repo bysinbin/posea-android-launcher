@@ -81,7 +81,16 @@ class AppsRepository(
                     continue
                 }
 
-                val label = activity.label?.toString() ?: activity.applicationInfo.packageName
+                val label = try {
+                    val rawLabel = activity.label?.toString()
+                    if (rawLabel.isNullOrBlank() || rawLabel.startsWith("@string/") || rawLabel.startsWith("@0x")) {
+                        context.packageManager.getApplicationLabel(activity.applicationInfo).toString()
+                    } else {
+                        rawLabel
+                    }
+                } catch (e: Exception) {
+                    activity.applicationInfo.packageName
+                }
                 val icon = try {
                     activity.getBadgedIcon(0)
                 } catch (e: Exception) {

@@ -212,6 +212,7 @@ private fun ModeSelectionStep(
         Text(
             text = "Deneyiminizi Seçin",
             style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold
         )
         Text(
@@ -275,6 +276,7 @@ private fun ModeSelectionStep(
                                 Text(
                                     text = mode.title,
                                     style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold
                                 )
                                 if (mode == LauncherMode.HYBRID) {
@@ -294,7 +296,7 @@ private fun ModeSelectionStep(
                             Text(
                                 text = subtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -315,6 +317,7 @@ private fun IconStyleStep(
         Text(
             text = "İkon Stili",
             style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold
         )
         Text(
@@ -372,12 +375,13 @@ private fun IconStyleStep(
                             Text(
                                 text = style.title,
                                 style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = style.description,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -398,6 +402,7 @@ private fun FavoritesSelectionStep(
         Text(
             text = "Temel Uygulamalarınız",
             style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold
         )
         Text(

@@ -27,7 +27,7 @@ data class LauncherUiState(
     val isSettingsOpen: Boolean = false
 )
 
-class LauncherViewModel(
+class LauncherViewModel @JvmOverloads constructor(
     application: Application,
     private val appsRepository: AppsRepository = AppsRepository(application),
     private val preferencesRepository: PreferencesRepository = PreferencesRepository(application)
