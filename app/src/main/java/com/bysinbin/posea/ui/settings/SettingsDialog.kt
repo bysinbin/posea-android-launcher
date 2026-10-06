@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +53,14 @@ import com.bysinbin.posea.model.UserPreferences
 import androidx.compose.material3.Switch
 import com.bysinbin.posea.ui.components.IconPackManager
 
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.bysinbin.posea.data.system.LauncherHelper
+
 @Composable
 fun SettingsDialog(
     isOpen: Boolean,
@@ -70,7 +79,21 @@ fun SettingsDialog(
     if (!isOpen) return
 
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isDefaultLauncher by remember { mutableStateOf(LauncherHelper.isDefaultLauncher(context)) }
     var isHiddenAppsOpen by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isDefaultLauncher = LauncherHelper.isDefaultLauncher(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     if (isHiddenAppsOpen) {
         HiddenAppsDialog(
@@ -350,15 +373,52 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Sistem Varsayılan Launcher Seçimi Butonu
-                OutlinedButton(
-                    onClick = { openDefaultHomeSettings(context) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                // Sistem Varsayılan Launcher Durumu & Seçimi
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isDefaultLauncher) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (!isDefaultLauncher) {
+                                LauncherHelper.requestDefaultLauncher(context)
+                            }
+                        }
                 ) {
-                    Icon(Icons.Default.Home, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Varsayılan Launcher Yap")
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isDefaultLauncher) Icons.Default.CheckCircle else Icons.Default.Home,
+                            contentDescription = null,
+                            tint = if (isDefaultLauncher) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isDefaultLauncher) "Varsayılan Launcher Aktif" else "Varsayılan Launcher Yap",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isDefaultLauncher) "Posea birincil ana ekranınız." else "Her zaman Posea'yı açmak için dokunun.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!isDefaultLauncher) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -383,21 +443,4 @@ fun SettingsDialog(
             }
         }
     )
-}
-
-private fun openDefaultHomeSettings(context: Context) {
-    try {
-        val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        // Fallback to manage default apps
-        try {
-            val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) {}
-    }
 }

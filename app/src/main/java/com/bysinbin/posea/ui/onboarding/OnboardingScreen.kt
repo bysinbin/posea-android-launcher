@@ -65,6 +65,16 @@ import com.bysinbin.posea.model.LauncherMode
 import com.bysinbin.posea.model.detectPreferredFavorites
 import com.bysinbin.posea.ui.components.AppIcon
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
+import com.bysinbin.posea.data.system.LauncherHelper
+
 @Composable
 fun OnboardingScreen(
     availableApps: List<AppModel>,
@@ -79,6 +89,22 @@ fun OnboardingScreen(
     }
     var selectedFavorites by remember(preferredFavorites) {
         mutableStateOf(preferredFavorites)
+    }
+
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isDefaultLauncher by remember { mutableStateOf(LauncherHelper.isDefaultLauncher(context)) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isDefaultLauncher = LauncherHelper.isDefaultLauncher(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Surface(
@@ -109,9 +135,9 @@ fun OnboardingScreen(
                     Spacer(modifier = Modifier.width(48.dp))
                 }
 
-                // Adım Göstergesi (Dots)
+                // Adım Göstergesi (Dots - 4 Adım)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    repeat(3) { index ->
+                    repeat(4) { index ->
                         Box(
                             modifier = Modifier
                                 .size(if (index == step) 24.dp else 8.dp, 8.dp)
@@ -163,6 +189,9 @@ fun OnboardingScreen(
                                 }
                             }
                         )
+                        3 -> DefaultLauncherStep(
+                            isDefault = isDefaultLauncher
+                        )
                     }
                 }
             }
@@ -174,7 +203,7 @@ fun OnboardingScreen(
                     .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                if (step < 2) {
+                if (step < 3) {
                     Button(
                         onClick = { step++ },
                         shape = RoundedCornerShape(16.dp),
@@ -187,18 +216,48 @@ fun OnboardingScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                     }
                 } else {
-                    Button(
-                        onClick = {
-                            onComplete(selectedMode, selectedIconStyle, selectedFavorites)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Launcher'ı Başlat", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (!isDefaultLauncher) {
+                            Button(
+                                onClick = {
+                                    LauncherHelper.requestDefaultLauncher(context)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                            ) {
+                                Icon(Icons.Default.Home, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Varsayılan Olarak Ayarla", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = {
+                                    onComplete(selectedMode, selectedIconStyle, selectedFavorites)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Şimdi Değil, Başlat", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    onComplete(selectedMode, selectedIconStyle, selectedFavorites)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Launcher'ı Başlat", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -451,6 +510,79 @@ private fun FavoritesSelectionStep(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DefaultLauncherStep(
+    isDefault: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (isDefault) {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Harika! Posea Hazır",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Posea varsayılan ana ekranınız olarak ayarlandı. Artık her zaman doğrudan ana ekranınıza döneceksiniz.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(52.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Varsayılan Ana Ekran",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Ana ekran (Home) tuşuna bastığınızda Posea'nın açılması için varsayılan olarak belirleyebilirsiniz.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
