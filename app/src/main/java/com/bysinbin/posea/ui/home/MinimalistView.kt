@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.bysinbin.posea.data.system.LauncherWidgetManager
 import com.bysinbin.posea.ui.components.AppListItem
 import com.bysinbin.posea.ui.components.ClockHeader
@@ -43,17 +45,37 @@ fun MinimalistView(
     iconStyle: IconStyle,
     homeWidgetIds: List<Int> = emptyList(),
     widgetManager: LauncherWidgetManager? = null,
+    badgeCounts: Map<String, Int> = emptyMap(),
     onAddWidgetClick: () -> Unit = {},
     onRemoveWidget: (Int) -> Unit = {},
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
+    onExpandNotifications: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp)
+            .pointerInput(Unit) {
+                var totalDrag = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { totalDrag = 0f },
+                    onDragEnd = {
+                        if (totalDrag > 80f) {
+                            onExpandNotifications()
+                        } else if (totalDrag < -80f) {
+                            onOpenDrawer()
+                        }
+                        totalDrag = 0f
+                    },
+                    onDragCancel = { totalDrag = 0f },
+                    onVerticalDrag = { _, dragAmount ->
+                        totalDrag += dragAmount
+                    }
+                )
+            }
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -95,6 +117,7 @@ fun MinimalistView(
                     iconStyle = iconStyle,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
+                    badgeCount = badgeCounts[app.packageName] ?: 0,
                     textColor = MaterialTheme.colorScheme.onBackground
                 )
             }

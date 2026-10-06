@@ -33,6 +33,7 @@ fun HybridView(
     homeWidgetIds: List<Int> = emptyList(),
     pinnedWidgetIds: List<Int> = emptyList(),
     widgetManager: LauncherWidgetManager,
+    badgeCounts: Map<String, Int> = emptyMap(),
     onAddHomeWidgetClick: () -> Unit,
     onRemoveHomeWidget: (Int) -> Unit,
     onAddPinnedWidgetClick: () -> Unit,
@@ -42,6 +43,7 @@ fun HybridView(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
+    onExpandNotifications: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -60,11 +62,13 @@ fun HybridView(
                     iconStyle = iconStyle,
                     homeWidgetIds = homeWidgetIds,
                     widgetManager = widgetManager,
+                    badgeCounts = badgeCounts,
                     onAddWidgetClick = onAddHomeWidgetClick,
                     onRemoveWidget = onRemoveHomeWidget,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
-                    onOpenDrawer = onOpenDrawer
+                    onOpenDrawer = onOpenDrawer,
+                    onExpandNotifications = onExpandNotifications
                 )
                 1 -> StandardGridView(
                     apps = allApps,
@@ -74,13 +78,15 @@ fun HybridView(
                     iconStyle = iconStyle,
                     pinnedWidgetIds = pinnedWidgetIds,
                     widgetManager = widgetManager,
+                    badgeCounts = badgeCounts,
                     onAddWidgetClick = onAddPinnedWidgetClick,
                     onRemoveWidget = onRemovePinnedWidget,
                     onFolderClick = onFolderClick,
                     onFolderLongClick = onFolderLongClick,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
-                    onOpenDrawer = onOpenDrawer
+                    onOpenDrawer = onOpenDrawer,
+                    onExpandNotifications = onExpandNotifications
                 )
             }
         }

@@ -76,6 +76,8 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import com.bysinbin.posea.data.system.PoseaAccessibilityService
 
+import com.bysinbin.posea.data.system.PoseaNotificationService
+
 private fun expandNotificationPanel(context: android.content.Context) {
     try {
         val statusBarService = context.getSystemService("statusbar")
@@ -91,6 +93,7 @@ fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val badgeCounts by PoseaNotificationService.badgeCounts.collectAsStateWithLifecycle()
     var selectedAppForMenu by remember { mutableStateOf<AppModel?>(null) }
     var selectedAppForFolder by remember { mutableStateOf<AppModel?>(null) }
     var activeFolder by remember { mutableStateOf<AppFolder?>(null) }
@@ -98,7 +101,6 @@ fun MainScreen(
     var newFolderName by remember { mutableStateOf("") }
     var appToRename by remember { mutableStateOf<AppModel?>(null) }
     var renameInput by remember { mutableStateOf("") }
-    var totalDragY by remember { mutableStateOf(0f) }
 
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
     var isAddingToHomeWidget by remember { mutableStateOf(false) }
@@ -168,24 +170,28 @@ fun MainScreen(
         }
     }
 
-    val onAddPinnedWidget: () -> Unit = {
-        isAddingToHomeWidget = false
-        val newId = viewModel.widgetManager.allocateAppWidgetId()
-        pendingWidgetId = newId
-        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+    val onAddPinnedWidget: () -> Unit = remember {
+        {
+            isAddingToHomeWidget = false
+            val newId = viewModel.widgetManager.allocateAppWidgetId()
+            pendingWidgetId = newId
+            val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+            }
+            pickWidgetLauncher.launch(pickIntent)
         }
-        pickWidgetLauncher.launch(pickIntent)
     }
 
-    val onAddHomeWidget: () -> Unit = {
-        isAddingToHomeWidget = true
-        val newId = viewModel.widgetManager.allocateAppWidgetId()
-        pendingWidgetId = newId
-        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+    val onAddHomeWidget: () -> Unit = remember {
+        {
+            isAddingToHomeWidget = true
+            val newId = viewModel.widgetManager.allocateAppWidgetId()
+            pendingWidgetId = newId
+            val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+            }
+            pickWidgetLauncher.launch(pickIntent)
         }
-        pickWidgetLauncher.launch(pickIntent)
     }
 
     // Geri tuşu kontrolü (Çekmece, ayarlar veya menüler açıksa kapat)
@@ -238,7 +244,7 @@ fun MainScreen(
         return
     }
 
-    // Ana Launcher Ekranı (Yukarı/Aşağı Jestler & Çift Dokunma ile Ekran Kilitleme)
+    // Ana Launcher Ekranı (Çift Dokunma ile Ekran Kilitleme)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -256,25 +262,6 @@ fun MainScreen(
                                 context.startActivity(intent)
                             } catch (_: Exception) {}
                         }
-                    }
-                )
-            }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { totalDragY = 0f },
-                    onDragEnd = {
-                        if (totalDragY > 100f) {
-                            // Aşağı kaydırma: Bildirim panelini aç
-                            expandNotificationPanel(context)
-                        } else if (totalDragY < -100f) {
-                            // Yukarı kaydırma: Çekmeceyi aç
-                            viewModel.setDrawerOpen(true)
-                        }
-                        totalDragY = 0f
-                    },
-                    onDragCancel = { totalDragY = 0f },
-                    onVerticalDrag = { _, dragAmount ->
-                        totalDragY += dragAmount
                     }
                 )
             }
@@ -302,6 +289,14 @@ fun MainScreen(
             }
         }
 
+        val onAppLongClick: (AppModel) -> Unit = remember { { selectedAppForMenu = it } }
+        val onFolderClick: (AppFolder) -> Unit = remember { { activeFolder = it } }
+        val onFolderLongClick: (AppFolder) -> Unit = remember { { activeFolder = it } }
+        val onOpenDrawer: () -> Unit = remember { { viewModel.setDrawerOpen(true) } }
+        val onRemovePinnedWidget: (Int) -> Unit = remember { { viewModel.removePinnedWidget(it) } }
+        val onRemoveHomeWidget: (Int) -> Unit = remember { { viewModel.removeHomeWidget(it) } }
+        val onExpandNotifications: () -> Unit = remember(context) { { expandNotificationPanel(context) } }
+
         // Kullanıcı tercihine göre seçilen mod görünümü
         when (uiState.preferences.mode) {
             LauncherMode.MINIMALIST -> {
@@ -310,11 +305,13 @@ fun MainScreen(
                     iconStyle = uiState.preferences.iconStyle,
                     homeWidgetIds = uiState.preferences.homeWidgetIds,
                     widgetManager = viewModel.widgetManager,
+                    badgeCounts = badgeCounts,
                     onAddWidgetClick = onAddHomeWidget,
-                    onRemoveWidget = { viewModel.removeHomeWidget(it) },
+                    onRemoveWidget = onRemoveHomeWidget,
                     onAppClick = safeLaunchApp,
-                    onAppLongClick = { selectedAppForMenu = it },
-                    onOpenDrawer = { viewModel.setDrawerOpen(true) }
+                    onAppLongClick = onAppLongClick,
+                    onOpenDrawer = onOpenDrawer,
+                    onExpandNotifications = onExpandNotifications
                 )
             }
             LauncherMode.STANDARD -> {
@@ -326,13 +323,15 @@ fun MainScreen(
                     iconStyle = uiState.preferences.iconStyle,
                     pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
                     widgetManager = viewModel.widgetManager,
+                    badgeCounts = badgeCounts,
                     onAddWidgetClick = onAddPinnedWidget,
-                    onRemoveWidget = { viewModel.removePinnedWidget(it) },
-                    onFolderClick = { activeFolder = it },
-                    onFolderLongClick = { activeFolder = it },
+                    onRemoveWidget = onRemovePinnedWidget,
+                    onFolderClick = onFolderClick,
+                    onFolderLongClick = onFolderLongClick,
                     onAppClick = safeLaunchApp,
-                    onAppLongClick = { selectedAppForMenu = it },
-                    onOpenDrawer = { viewModel.setDrawerOpen(true) }
+                    onAppLongClick = onAppLongClick,
+                    onOpenDrawer = onOpenDrawer,
+                    onExpandNotifications = onExpandNotifications
                 )
             }
             LauncherMode.HYBRID -> {
@@ -345,15 +344,17 @@ fun MainScreen(
                     homeWidgetIds = uiState.preferences.homeWidgetIds,
                     pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
                     widgetManager = viewModel.widgetManager,
+                    badgeCounts = badgeCounts,
                     onAddHomeWidgetClick = onAddHomeWidget,
-                    onRemoveHomeWidget = { viewModel.removeHomeWidget(it) },
+                    onRemoveHomeWidget = onRemoveHomeWidget,
                     onAddPinnedWidgetClick = onAddPinnedWidget,
-                    onRemovePinnedWidget = { viewModel.removePinnedWidget(it) },
-                    onFolderClick = { activeFolder = it },
-                    onFolderLongClick = { activeFolder = it },
+                    onRemovePinnedWidget = onRemovePinnedWidget,
+                    onFolderClick = onFolderClick,
+                    onFolderLongClick = onFolderLongClick,
                     onAppClick = safeLaunchApp,
-                    onAppLongClick = { selectedAppForMenu = it },
-                    onOpenDrawer = { viewModel.setDrawerOpen(true) }
+                    onAppLongClick = onAppLongClick,
+                    onOpenDrawer = onOpenDrawer,
+                    onExpandNotifications = onExpandNotifications
                 )
             }
         }

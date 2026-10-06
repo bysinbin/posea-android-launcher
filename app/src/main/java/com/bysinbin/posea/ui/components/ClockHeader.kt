@@ -71,32 +71,37 @@ fun ClockHeader(
     val formattedTime = timeFormatter.format(currentTime)
     val formattedDate = dateFormatter.format(currentTime)
 
-    // Pil durumu
-    val batteryInfo = remember(currentTime) {
-        try {
-            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-            val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else null
-            Pair(pct, isCharging)
-        } catch (_: Exception) {
-            Pair(null, false)
-        }
-    }
+    // Pil ve Alarm durumu (Arka planda IPC çağrısı yaparak ana iş parçacığında takılmayı önler)
+    var batteryInfo by remember { mutableStateOf<Pair<Int?, Boolean>>(Pair(null, false)) }
+    var nextAlarmTime by remember { mutableStateOf<String?>(null) }
 
-    // Sonraki alarm
-    val nextAlarmTime = remember(currentTime) {
-        try {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-            val nextAlarm = alarmManager?.nextAlarmClock
-            nextAlarm?.triggerTime?.let {
-                SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it))
+    LaunchedEffect(currentTime) {
+        val bat = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+                val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+                val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+                val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else null
+                Pair(pct, isCharging)
+            } catch (_: Exception) {
+                Pair(null, false)
             }
-        } catch (_: Exception) {
-            null
         }
+        val alarm = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                val nextAlarm = alarmManager?.nextAlarmClock
+                nextAlarm?.triggerTime?.let {
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it))
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+        batteryInfo = bat
+        nextAlarmTime = alarm
     }
 
     Column(

@@ -43,6 +43,7 @@ fun AppListItem(
     onAppLongClick: (AppModel) -> Unit,
     onToggleFavorite: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val click = remember(app, onAppClick) { { onAppClick(app) } }
@@ -70,7 +71,8 @@ fun AppListItem(
             AppIcon(
                 app = app,
                 iconStyle = iconStyle,
-                size = 44.dp
+                size = 44.dp,
+                badgeCount = badgeCount
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -107,6 +109,7 @@ fun AppGridItem(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val click = remember(app, onAppClick) { { onAppClick(app) } }
@@ -125,7 +128,8 @@ fun AppGridItem(
         AppIcon(
             app = app,
             iconStyle = iconStyle,
-            size = 52.dp
+            size = 52.dp,
+            badgeCount = badgeCount
         )
 
         Spacer(modifier = Modifier.height(6.dp))

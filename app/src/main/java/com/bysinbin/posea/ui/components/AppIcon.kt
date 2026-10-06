@@ -111,11 +111,8 @@ fun AppIcon(
     iconStyle: IconStyle,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
-    showBadge: Boolean = true
+    badgeCount: Int = 0
 ) {
-    val badgeCounts by PoseaNotificationService.badgeCounts.collectAsStateWithLifecycle()
-    val badgeCount = if (showBadge) badgeCounts[app.packageName] ?: 0 else 0
-
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center

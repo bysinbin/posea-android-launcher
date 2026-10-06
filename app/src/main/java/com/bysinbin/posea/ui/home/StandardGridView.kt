@@ -29,6 +29,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.bysinbin.posea.data.system.LauncherWidgetManager
 import com.bysinbin.posea.model.AppFolder
 import com.bysinbin.posea.model.AppModel
@@ -48,6 +52,7 @@ fun StandardGridView(
     iconStyle: IconStyle,
     pinnedWidgetIds: List<Int>,
     widgetManager: LauncherWidgetManager,
+    badgeCounts: Map<String, Int> = emptyMap(),
     onAddWidgetClick: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onFolderClick: (AppFolder) -> Unit = {},
@@ -55,8 +60,26 @@ fun StandardGridView(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
+    onExpandNotifications: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val nestedScrollConnection = remember(onExpandNotifications) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                // En üstteyken aşağı kaydırma bildirim panelini açar, listeyi kasmadan doğal kaydırmayı korur
+                if (available.y > 60f) {
+                    onExpandNotifications()
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -67,7 +90,8 @@ fun StandardGridView(
             columns = GridCells.Fixed(gridColumns.coerceIn(3, 6)),
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .nestedScroll(nestedScrollConnection),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -86,18 +110,20 @@ fun StandardGridView(
                 }
             }
 
-            // 2. Native Android Widget Alanı (Tüm sütunları kaplar)
-            item(
-                span = { GridItemSpan(maxLineSpan) },
-                key = "header_widget",
-                contentType = "header_widget"
-            ) {
-                WidgetContainer(
-                    widgetIds = pinnedWidgetIds,
-                    widgetManager = widgetManager,
-                    onAddWidgetClick = onAddWidgetClick,
-                    onRemoveWidget = onRemoveWidget
-                )
+            // 2. Native Android Widget Alanı (Sadece widget eklenmişse render edilir)
+            if (pinnedWidgetIds.isNotEmpty()) {
+                item(
+                    span = { GridItemSpan(maxLineSpan) },
+                    key = "header_widget",
+                    contentType = "header_widget"
+                ) {
+                    WidgetContainer(
+                        widgetIds = pinnedWidgetIds,
+                        widgetManager = widgetManager,
+                        onAddWidgetClick = onAddWidgetClick,
+                        onRemoveWidget = onRemoveWidget
+                    )
+                }
             }
 
             // 3. Boşluk
@@ -136,6 +162,7 @@ fun StandardGridView(
                     iconStyle = iconStyle,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
+                    badgeCount = badgeCounts[app.packageName] ?: 0,
                     textColor = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -166,7 +193,12 @@ fun StandardGridView(
                             .clickable(onClick = click),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppIcon(app = app, iconStyle = iconStyle, size = 46.dp)
+                        AppIcon(
+                            app = app,
+                            iconStyle = iconStyle,
+                            size = 46.dp,
+                            badgeCount = badgeCounts[app.packageName] ?: 0
+                        )
                     }
                 }
 
