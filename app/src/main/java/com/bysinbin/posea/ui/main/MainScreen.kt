@@ -38,6 +38,28 @@ import com.bysinbin.posea.ui.home.StandardGridView
 import com.bysinbin.posea.ui.onboarding.OnboardingScreen
 import com.bysinbin.posea.ui.settings.SettingsDialog
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import com.bysinbin.posea.model.AppFolder
+import com.bysinbin.posea.ui.components.FolderDetailDialog
+
 @Composable
 fun MainScreen(
     viewModel: LauncherViewModel = viewModel(),
@@ -45,7 +67,13 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedAppForMenu by remember { mutableStateOf<AppModel?>(null) }
+    var selectedAppForFolder by remember { mutableStateOf<AppModel?>(null) }
+    var activeFolder by remember { mutableStateOf<AppFolder?>(null) }
+    var isNewFolderDialogOpen by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
+    var isAddingToHomeWidget by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -71,7 +99,11 @@ fun MainScreen(
     ) { result ->
         val id = pendingWidgetId
         if (result.resultCode == Activity.RESULT_OK && id != null) {
-            viewModel.addPinnedWidget(id)
+            if (isAddingToHomeWidget) {
+                viewModel.addHomeWidget(id)
+            } else {
+                viewModel.addPinnedWidget(id)
+            }
         } else if (id != null) {
             viewModel.widgetManager.deleteAppWidgetId(id)
         }
@@ -93,7 +125,11 @@ fun MainScreen(
                     }
                     configureWidgetLauncher.launch(configIntent)
                 } else {
-                    viewModel.addPinnedWidget(id)
+                    if (isAddingToHomeWidget) {
+                        viewModel.addHomeWidget(id)
+                    } else {
+                        viewModel.addPinnedWidget(id)
+                    }
                     pendingWidgetId = null
                 }
             }
@@ -103,7 +139,8 @@ fun MainScreen(
         }
     }
 
-    val onAddWidget: () -> Unit = {
+    val onAddPinnedWidget: () -> Unit = {
+        isAddingToHomeWidget = false
         val newId = viewModel.widgetManager.allocateAppWidgetId()
         pendingWidgetId = newId
         val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
@@ -112,9 +149,32 @@ fun MainScreen(
         pickWidgetLauncher.launch(pickIntent)
     }
 
-    // Geri tuşu kontrolü (Çekmece veya ayarlar açıksa kapat)
-    BackHandler(enabled = uiState.isDrawerOpen || uiState.isSettingsOpen || selectedAppForMenu != null) {
-        if (selectedAppForMenu != null) {
+    val onAddHomeWidget: () -> Unit = {
+        isAddingToHomeWidget = true
+        val newId = viewModel.widgetManager.allocateAppWidgetId()
+        pendingWidgetId = newId
+        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+        }
+        pickWidgetLauncher.launch(pickIntent)
+    }
+
+    // Geri tuşu kontrolü (Çekmece, ayarlar veya menüler açıksa kapat)
+    BackHandler(
+        enabled = uiState.isDrawerOpen ||
+                uiState.isSettingsOpen ||
+                selectedAppForMenu != null ||
+                activeFolder != null ||
+                selectedAppForFolder != null ||
+                isNewFolderDialogOpen
+    ) {
+        if (activeFolder != null) {
+            activeFolder = null
+        } else if (isNewFolderDialogOpen) {
+            isNewFolderDialogOpen = false
+        } else if (selectedAppForFolder != null) {
+            selectedAppForFolder = null
+        } else if (selectedAppForMenu != null) {
             selectedAppForMenu = null
         } else if (uiState.isDrawerOpen) {
             viewModel.setDrawerOpen(false)
@@ -159,6 +219,10 @@ fun MainScreen(
                 MinimalistView(
                     favoriteApps = uiState.favoriteApps,
                     iconStyle = uiState.preferences.iconStyle,
+                    homeWidgetIds = uiState.preferences.homeWidgetIds,
+                    widgetManager = viewModel.widgetManager,
+                    onAddWidgetClick = onAddHomeWidget,
+                    onRemoveWidget = { viewModel.removeHomeWidget(it) },
                     onAppClick = { viewModel.launchApp(it) },
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
@@ -168,11 +232,15 @@ fun MainScreen(
                 StandardGridView(
                     apps = uiState.allApps,
                     dockApps = uiState.favoriteApps,
+                    folders = uiState.preferences.folders,
+                    gridColumns = uiState.preferences.gridColumns,
                     iconStyle = uiState.preferences.iconStyle,
                     pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
                     widgetManager = viewModel.widgetManager,
-                    onAddWidgetClick = onAddWidget,
+                    onAddWidgetClick = onAddPinnedWidget,
                     onRemoveWidget = { viewModel.removePinnedWidget(it) },
+                    onFolderClick = { activeFolder = it },
+                    onFolderLongClick = { activeFolder = it },
                     onAppClick = { viewModel.launchApp(it) },
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
@@ -182,11 +250,18 @@ fun MainScreen(
                 HybridView(
                     favoriteApps = uiState.favoriteApps,
                     allApps = uiState.allApps,
+                    folders = uiState.preferences.folders,
+                    gridColumns = uiState.preferences.gridColumns,
                     iconStyle = uiState.preferences.iconStyle,
+                    homeWidgetIds = uiState.preferences.homeWidgetIds,
                     pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
                     widgetManager = viewModel.widgetManager,
-                    onAddWidgetClick = onAddWidget,
-                    onRemoveWidget = { viewModel.removePinnedWidget(it) },
+                    onAddHomeWidgetClick = onAddHomeWidget,
+                    onRemoveHomeWidget = { viewModel.removeHomeWidget(it) },
+                    onAddPinnedWidgetClick = onAddPinnedWidget,
+                    onRemovePinnedWidget = { viewModel.removePinnedWidget(it) },
+                    onFolderClick = { activeFolder = it },
+                    onFolderLongClick = { activeFolder = it },
                     onAppClick = { viewModel.launchApp(it) },
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
@@ -211,39 +286,233 @@ fun MainScreen(
         SettingsDialog(
             isOpen = uiState.isSettingsOpen,
             preferences = uiState.preferences,
+            allApps = uiState.allApps + uiState.hiddenApps,
             onModeChange = { viewModel.setLauncherMode(it) },
             onIconStyleChange = { viewModel.setIconStyle(it) },
+            onGridColumnsChange = { viewModel.setGridColumns(it) },
+            onToggleHideApp = { viewModel.toggleHideApp(it) },
             onResetOnboarding = { viewModel.resetOnboarding() },
             onDismiss = { viewModel.setSettingsOpen(false) }
         )
 
-        // Uygulamaya Uzun Basınca Açılan Hızlı Menü
+        // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Favori, Gizle, Klasöre Ekle, Bilgi)
         selectedAppForMenu?.let { app ->
             AlertDialog(
                 onDismissRequest = { selectedAppForMenu = null },
                 title = { Text(app.label) },
                 text = {
-                    Text(
-                        if (app.isFavorite) "Bu uygulamayı favorilerden kaldırmak veya uygulama bilgilerine gitmek ister misiniz?"
-                        else "Bu uygulamayı favorilere eklemek veya uygulama bilgilerine gitmek ister misiniz?"
+                    androidx.compose.foundation.layout.Column(
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+                    ) {
+                        // 1. Favorilere Ekle / Kaldır
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.toggleFavorite(app.packageName)
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(if (app.isFavorite) "Favorilerden Kaldır" else "Favorilere Ekle")
+                            }
+                        }
+
+                        // 2. Uygulamayı Gizle
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.toggleHideApp(app.packageName)
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Uygulamayı Gizle")
+                            }
+                        }
+
+                        // 3. Klasöre Ekle
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedAppForFolder = app
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Klasöre Ekle...")
+                            }
+                        }
+
+                        // 4. Uygulama Bilgisi
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.openAppInfo(app)
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Uygulama Bilgisi")
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedAppForMenu = null }) {
+                        Text("Kapat")
+                    }
+                }
+            )
+        }
+
+        // Klasör Seçme Menüsü ("Klasöre Ekle..." tıklandığında)
+        selectedAppForFolder?.let { app ->
+            AlertDialog(
+                onDismissRequest = { selectedAppForFolder = null },
+                title = { Text("'${app.label}' İçin Klasör Seçin") },
+                text = {
+                    androidx.compose.foundation.layout.Column(
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Mevcut Klasörler
+                        uiState.preferences.folders.forEach { folder ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.addAppToFolder(folder.id, app.packageName)
+                                        selectedAppForFolder = null
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(folder.name, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+
+                        // Yeni Klasör Oluştur Butonu
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    newFolderName = ""
+                                    isNewFolderDialogOpen = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CreateNewFolder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Yeni Klasör Oluştur", color = MaterialTheme.colorScheme.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedAppForFolder = null }) {
+                        Text("İptal")
+                    }
+                }
+            )
+        }
+
+        // Yeni Klasör Adı İletişim Kutusu
+        if (isNewFolderDialogOpen && selectedAppForFolder != null) {
+            val app = selectedAppForFolder!!
+            AlertDialog(
+                onDismissRequest = { isNewFolderDialogOpen = false },
+                title = { Text("Yeni Klasör Oluştur") },
+                text = {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = { newFolderName = it },
+                        placeholder = { Text("Klasör adı (örn: Oyunlar, Sosyal)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.toggleFavorite(app.packageName)
-                        selectedAppForMenu = null
+                    androidx.compose.material3.Button(onClick = {
+                        val name = newFolderName.trim().ifEmpty { "Yeni Klasör" }
+                        viewModel.createFolder(name, listOf(app.packageName))
+                        isNewFolderDialogOpen = false
+                        selectedAppForFolder = null
                     }) {
-                        Text(if (app.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle")
+                        Text("Oluştur")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = {
-                        viewModel.openAppInfo(app)
-                        selectedAppForMenu = null
-                    }) {
-                        Text("Uygulama Bilgisi")
+                    TextButton(onClick = { isNewFolderDialogOpen = false }) {
+                        Text("İptal")
                     }
                 }
+            )
+        }
+
+        // Açık Olan Klasörün Detay Diyaloğu
+        activeFolder?.let { folder ->
+            // En güncel halini uiState.preferences.folders'dan al
+            val currentFolder = uiState.preferences.folders.find { it.id == folder.id } ?: folder
+            FolderDetailDialog(
+                folder = currentFolder,
+                allApps = uiState.allApps,
+                iconStyle = uiState.preferences.iconStyle,
+                onAppClick = { viewModel.launchApp(it) },
+                onRenameFolder = { viewModel.renameFolder(currentFolder.id, it) },
+                onDeleteFolder = {
+                    viewModel.deleteFolder(currentFolder.id)
+                    activeFolder = null
+                },
+                onAddAppsToFolder = { newPackages ->
+                    newPackages.forEach { pkg -> viewModel.addAppToFolder(currentFolder.id, pkg) }
+                },
+                onRemoveAppFromFolder = { pkg ->
+                    viewModel.removeAppFromFolder(currentFolder.id, pkg)
+                },
+                onDismiss = { activeFolder = null }
             )
         }
     }

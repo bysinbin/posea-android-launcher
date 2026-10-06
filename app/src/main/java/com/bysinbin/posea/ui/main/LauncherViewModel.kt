@@ -25,6 +25,7 @@ data class LauncherUiState(
     val preferences: UserPreferences = UserPreferences(),
     val allApps: List<AppModel> = emptyList(),
     val favoriteApps: List<AppModel> = emptyList(),
+    val hiddenApps: List<AppModel> = emptyList(),
     val searchQuery: String = "",
     val filteredApps: List<AppModel> = emptyList(),
     val isDrawerOpen: Boolean = false,
@@ -63,14 +64,18 @@ class LauncherViewModel @JvmOverloads constructor(
             app.copy(isFavorite = preferences.favoritePackages.contains(app.packageName))
         }
 
+        // Gizlenen uygulamaları ayır
+        val visibleApps = appsWithFavorites.filter { !preferences.hiddenPackages.contains(it.packageName) }
+        val hiddenApps = appsWithFavorites.filter { preferences.hiddenPackages.contains(it.packageName) }
+
         // Favori uygulamaları filtrele
-        val favoriteApps = appsWithFavorites.filter { it.isFavorite }
+        val favoriteApps = visibleApps.filter { it.isFavorite }
 
         // Arama filtresi
         val filteredApps = if (query.isBlank()) {
-            appsWithFavorites
+            visibleApps
         } else {
-            appsWithFavorites.filter {
+            visibleApps.filter {
                 it.label.contains(query, ignoreCase = true) ||
                 it.packageName.contains(query, ignoreCase = true)
             }
@@ -79,8 +84,9 @@ class LauncherViewModel @JvmOverloads constructor(
         LauncherUiState(
             isLoading = false,
             preferences = preferences,
-            allApps = appsWithFavorites,
+            allApps = visibleApps,
             favoriteApps = favoriteApps,
+            hiddenApps = hiddenApps,
             searchQuery = query,
             filteredApps = filteredApps,
             isDrawerOpen = isDrawerOpen,
@@ -123,6 +129,18 @@ class LauncherViewModel @JvmOverloads constructor(
         }
     }
 
+    fun toggleHideApp(packageName: String) {
+        viewModelScope.launch {
+            preferencesRepository.toggleHideApp(packageName)
+        }
+    }
+
+    fun setGridColumns(count: Int) {
+        viewModelScope.launch {
+            preferencesRepository.setGridColumns(count)
+        }
+    }
+
     fun setLauncherMode(mode: LauncherMode) {
         viewModelScope.launch {
             preferencesRepository.setLauncherMode(mode)
@@ -151,6 +169,50 @@ class LauncherViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             widgetManager.deleteAppWidgetId(widgetId)
             preferencesRepository.removePinnedWidget(widgetId)
+        }
+    }
+
+    fun addHomeWidget(widgetId: Int) {
+        viewModelScope.launch {
+            preferencesRepository.addHomeWidget(widgetId)
+        }
+    }
+
+    fun removeHomeWidget(widgetId: Int) {
+        viewModelScope.launch {
+            widgetManager.deleteAppWidgetId(widgetId)
+            preferencesRepository.removeHomeWidget(widgetId)
+        }
+    }
+
+    // Klasör Yöneticisi
+    fun createFolder(name: String, packageNames: List<String>) {
+        viewModelScope.launch {
+            preferencesRepository.createFolder(name, packageNames)
+        }
+    }
+
+    fun deleteFolder(folderId: String) {
+        viewModelScope.launch {
+            preferencesRepository.deleteFolder(folderId)
+        }
+    }
+
+    fun renameFolder(folderId: String, newName: String) {
+        viewModelScope.launch {
+            preferencesRepository.renameFolder(folderId, newName)
+        }
+    }
+
+    fun addAppToFolder(folderId: String, packageName: String) {
+        viewModelScope.launch {
+            preferencesRepository.addAppToFolder(folderId, packageName)
+        }
+    }
+
+    fun removeAppFromFolder(folderId: String, packageName: String) {
+        viewModelScope.launch {
+            preferencesRepository.removeAppFromFolder(folderId, packageName)
         }
     }
 

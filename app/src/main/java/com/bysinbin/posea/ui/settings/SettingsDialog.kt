@@ -37,20 +37,45 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.model.LauncherMode
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.UserPreferences
 
 @Composable
 fun SettingsDialog(
     isOpen: Boolean,
     preferences: UserPreferences,
+    allApps: List<AppModel>,
     onModeChange: (LauncherMode) -> Unit,
     onIconStyleChange: (IconStyle) -> Unit,
+    onGridColumnsChange: (Int) -> Unit,
+    onToggleHideApp: (String) -> Unit,
     onResetOnboarding: () -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!isOpen) return
 
     val context = LocalContext.current
+    var isHiddenAppsOpen by remember { mutableStateOf(false) }
+
+    if (isHiddenAppsOpen) {
+        HiddenAppsDialog(
+            isOpen = true,
+            allApps = allApps,
+            hiddenPackages = preferences.hiddenPackages,
+            iconStyle = preferences.iconStyle,
+            onToggleHide = onToggleHideApp,
+            onDismiss = { isHiddenAppsOpen = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -109,6 +134,41 @@ fun SettingsDialog(
                     color = DividerDefaults.color.copy(alpha = 0.5f)
                 )
 
+                // Izgara Sütun Sayısı
+                Text(
+                    text = "Izgara Düzeni (Sütun Sayısı)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(3, 4, 5, 6).forEach { cols ->
+                        FilterChip(
+                            selected = preferences.gridColumns == cols,
+                            onClick = { onGridColumnsChange(cols) },
+                            label = {
+                                Text(
+                                    text = "$cols",
+                                    fontWeight = if (preferences.gridColumns == cols) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
+
                 // İkon Stili Seçimi
                 Text(
                     text = "İkon Stili",
@@ -150,6 +210,22 @@ fun SettingsDialog(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = DividerDefaults.color.copy(alpha = 0.5f)
                 )
+
+                // Gizlenen Uygulamalar Yönetimi
+                OutlinedButton(
+                    onClick = { isHiddenAppsOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (preferences.hiddenPackages.isEmpty()) "Uygulamaları Gizle"
+                        else "Gizlenen Uygulamalar (${preferences.hiddenPackages.size})"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Sistem Varsayılan Launcher Seçimi Butonu
                 OutlinedButton(

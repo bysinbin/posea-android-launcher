@@ -32,13 +32,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
+import com.bysinbin.posea.data.system.LauncherWidgetManager
 import com.bysinbin.posea.ui.components.AppListItem
 import com.bysinbin.posea.ui.components.ClockHeader
+import com.bysinbin.posea.ui.components.WidgetContainer
 
 @Composable
 fun MinimalistView(
     favoriteApps: List<AppModel>,
     iconStyle: IconStyle,
+    homeWidgetIds: List<Int> = emptyList(),
+    widgetManager: LauncherWidgetManager? = null,
+    onAddWidgetClick: () -> Unit = {},
+    onRemoveWidget: (Int) -> Unit = {},
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
@@ -57,9 +63,9 @@ fun MinimalistView(
             textColor = MaterialTheme.colorScheme.onBackground
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Odak / Favori Uygulamalar Listesi
+        // Odak / Favori Uygulamalar Listesi & Anasayfa Widget'ları
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -67,6 +73,18 @@ fun MinimalistView(
                 .padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Anasayfa Widget Desteği
+            if (widgetManager != null) {
+                item(key = "home_widgets") {
+                    WidgetContainer(
+                        widgetIds = homeWidgetIds,
+                        widgetManager = widgetManager,
+                        onAddWidgetClick = onAddWidgetClick,
+                        onRemoveWidget = onRemoveWidget
+                    )
+                }
+            }
+
             items(
                 items = favoriteApps,
                 key = { "${it.packageName}/${it.activityName}" },

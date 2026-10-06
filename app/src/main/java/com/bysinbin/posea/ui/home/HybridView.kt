@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.bysinbin.posea.data.system.LauncherWidgetManager
+import com.bysinbin.posea.model.AppFolder
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 
@@ -26,11 +27,18 @@ import com.bysinbin.posea.model.IconStyle
 fun HybridView(
     favoriteApps: List<AppModel>,
     allApps: List<AppModel>,
+    folders: List<AppFolder> = emptyList(),
+    gridColumns: Int = 4,
     iconStyle: IconStyle,
-    pinnedWidgetIds: List<Int>,
+    homeWidgetIds: List<Int> = emptyList(),
+    pinnedWidgetIds: List<Int> = emptyList(),
     widgetManager: LauncherWidgetManager,
-    onAddWidgetClick: () -> Unit,
-    onRemoveWidget: (Int) -> Unit,
+    onAddHomeWidgetClick: () -> Unit,
+    onRemoveHomeWidget: (Int) -> Unit,
+    onAddPinnedWidgetClick: () -> Unit,
+    onRemovePinnedWidget: (Int) -> Unit,
+    onFolderClick: (AppFolder) -> Unit = {},
+    onFolderLongClick: (AppFolder) -> Unit = {},
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
@@ -50,6 +58,10 @@ fun HybridView(
                 0 -> MinimalistView(
                     favoriteApps = favoriteApps,
                     iconStyle = iconStyle,
+                    homeWidgetIds = homeWidgetIds,
+                    widgetManager = widgetManager,
+                    onAddWidgetClick = onAddHomeWidgetClick,
+                    onRemoveWidget = onRemoveHomeWidget,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer
@@ -57,11 +69,15 @@ fun HybridView(
                 1 -> StandardGridView(
                     apps = allApps,
                     dockApps = favoriteApps,
+                    folders = folders,
+                    gridColumns = gridColumns,
                     iconStyle = iconStyle,
                     pinnedWidgetIds = pinnedWidgetIds,
                     widgetManager = widgetManager,
-                    onAddWidgetClick = onAddWidgetClick,
-                    onRemoveWidget = onRemoveWidget,
+                    onAddWidgetClick = onAddPinnedWidgetClick,
+                    onRemoveWidget = onRemovePinnedWidget,
+                    onFolderClick = onFolderClick,
+                    onFolderLongClick = onFolderLongClick,
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer

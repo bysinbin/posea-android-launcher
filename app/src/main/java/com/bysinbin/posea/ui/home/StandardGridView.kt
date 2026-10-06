@@ -30,22 +30,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.bysinbin.posea.data.system.LauncherWidgetManager
+import com.bysinbin.posea.model.AppFolder
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.ui.components.AppGridItem
 import com.bysinbin.posea.ui.components.AppIcon
 import com.bysinbin.posea.ui.components.ClockHeader
+import com.bysinbin.posea.ui.components.FolderGridItem
 import com.bysinbin.posea.ui.components.WidgetContainer
 
 @Composable
 fun StandardGridView(
     apps: List<AppModel>,
     dockApps: List<AppModel>,
+    folders: List<AppFolder> = emptyList(),
+    gridColumns: Int = 4,
     iconStyle: IconStyle,
     pinnedWidgetIds: List<Int>,
     widgetManager: LauncherWidgetManager,
     onAddWidgetClick: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onFolderClick: (AppFolder) -> Unit = {},
+    onFolderLongClick: (AppFolder) -> Unit = {},
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
@@ -56,9 +62,9 @@ fun StandardGridView(
             .fillMaxSize()
             .padding(horizontal = 8.dp)
     ) {
-        // Uygulama Izgarası (4 Sütun) - Saat ve Widget ile Birlikte Akıcı Tek Kaydırma
+        // Dinamik Sütun Sayısı ile Uygulama ve Klasör Izgarası
         LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
+            columns = GridCells.Fixed(gridColumns.coerceIn(3, 6)),
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -103,7 +109,23 @@ fun StandardGridView(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // 4. Uygulama İkonları Izgarası (4 Sütun, 100% Atlanabilir / Skippable)
+            // 4. Klasörler / Gruplar
+            items(
+                items = folders,
+                key = { "folder_${it.id}" },
+                contentType = { "folder_item" }
+            ) { folder ->
+                FolderGridItem(
+                    folder = folder,
+                    allApps = apps,
+                    iconStyle = iconStyle,
+                    onClick = { onFolderClick(folder) },
+                    onLongClick = { onFolderLongClick(folder) },
+                    textColor = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            // 5. Uygulama İkonları Izgarası (Seçilen sütun sayısı, 100% Atlanabilir / Skippable)
             items(
                 items = apps,
                 key = { "${it.packageName}/${it.activityName}" },

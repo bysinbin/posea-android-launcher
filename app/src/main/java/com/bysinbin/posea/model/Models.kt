@@ -55,6 +55,16 @@ data class AppModel(
 )
 
 /**
+ * Uygulama Grubu / Klasör Modeli
+ */
+@Immutable
+data class AppFolder(
+    val id: String,
+    val name: String,
+    val packageNames: List<String> = emptyList()
+)
+
+/**
  * Kullanıcı tercihleri ve Launcher durumu
  */
 @Immutable
@@ -62,7 +72,10 @@ data class UserPreferences(
     val mode: LauncherMode = LauncherMode.HYBRID,
     val iconStyle: IconStyle = IconStyle.COLOR,
     val favoritePackages: Set<String> = emptySet(),
+    val hiddenPackages: Set<String> = emptySet(),
+    val folders: List<AppFolder> = emptyList(),
     val pinnedWidgetIds: List<Int> = emptyList(),
+    val homeWidgetIds: List<Int> = emptyList(),
     val isOnboardingCompleted: Boolean = false,
     val showClock: Boolean = true,
     val autoOpenKeyboard: Boolean = false,
