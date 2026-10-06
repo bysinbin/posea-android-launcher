@@ -39,11 +39,13 @@ fun ClockHeader(
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
 
-    // Saat ve dakikayı canlı güncelle (dakikada bir veya saniye senkronlu)
+    // Saat ve dakikayı dakika başlarında senkronize güncelle
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = Date()
-            delay(1000)
+            val now = System.currentTimeMillis()
+            currentTime = Date(now)
+            val msToNextMinute = 60_000L - (now % 60_000L)
+            delay(msToNextMinute.coerceAtLeast(1000L))
         }
     }
 

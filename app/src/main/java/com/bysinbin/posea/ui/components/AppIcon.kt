@@ -1,12 +1,10 @@
 package com.bysinbin.posea.ui.components
 
 import android.content.Context
-import android.content.pm.LauncherApps
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.os.Process
 import androidx.collection.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -38,62 +37,47 @@ import com.bysinbin.posea.model.IconStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val iconBitmapCache = LruCache<String, Bitmap>(300)
-
 /**
- * Android Drawable nesnesini Bitmap'e dönüştürür ve LruCache içinde saklar.
+ * 120 FPS ultra akıcı ikon önbellek yöneticisi.
+ * İkonlar doğrudan ImageBitmap olarak saklanır, kaydırma sırasında dönüşüm maliyetini sıfıra indirir.
  */
-fun getOrCacheBitmap(packageName: String, drawable: Drawable?, targetSize: Int = 144): Bitmap? {
-    if (drawable == null) return null
-    val cached = iconBitmapCache.get(packageName)
-    if (cached != null) return cached
+object IconCacheManager {
+    val imageBitmapCache = LruCache<String, ImageBitmap>(400)
+    private val monochromeFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
 
-    val bitmap = try {
-        if (drawable is BitmapDrawable && drawable.bitmap != null) {
-            drawable.bitmap
-        } else {
-            val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else targetSize
-            val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else targetSize
-            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bmp)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-            bmp
-        }
-    } catch (e: Exception) {
-        null
-    }
+    fun get(packageName: String): ImageBitmap? = imageBitmapCache.get(packageName)
 
-    if (bitmap != null) {
-        iconBitmapCache.put(packageName, bitmap)
-    }
-    return bitmap
-}
+    fun getMonochromeFilter(): ColorFilter = monochromeFilter
 
-/**
- * Arka planda asenkron olarak uygulama ikonunu çeker.
- */
-fun loadAppBitmap(context: Context, app: AppModel, targetSize: Int = 144): Bitmap? {
-    val cached = iconBitmapCache.get(app.packageName)
-    if (cached != null) return cached
+    fun loadAndCache(context: Context, packageName: String): ImageBitmap? {
+        val cached = imageBitmapCache.get(packageName)
+        if (cached != null) return cached
 
-    val drawable = if (app.icon != null) {
-        app.icon
-    } else {
-        try {
-            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            val activities = launcherApps.getActivityList(app.packageName, app.userHandle ?: Process.myUserHandle())
-            activities.firstOrNull()?.getBadgedIcon(0) ?: context.packageManager.getApplicationIcon(app.packageName)
+        val drawable = try {
+            context.packageManager.getApplicationIcon(packageName)
         } catch (_: Exception) {
-            try {
-                context.packageManager.getApplicationIcon(app.packageName)
-            } catch (_: Exception) {
-                null
+            null
+        } ?: return null
+
+        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 144
+        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 144
+        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+
+        val imageBmp = bmp.asImageBitmap()
+        imageBitmapCache.put(packageName, imageBmp)
+        return imageBmp
+    }
+
+    suspend fun preload(context: Context, apps: List<AppModel>) = withContext(Dispatchers.Default) {
+        for (app in apps) {
+            if (imageBitmapCache.get(app.packageName) == null) {
+                loadAndCache(context, app.packageName)
             }
         }
     }
-
-    return getOrCacheBitmap(app.packageName, drawable, targetSize)
 }
 
 @Composable
@@ -104,7 +88,6 @@ fun AppIcon(
     size: Dp = 48.dp
 ) {
     if (iconStyle == IconStyle.TEXT_ONLY) {
-        // Tipografik minimal gösterim: Yuvarlak harf rozeti
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
             modifier = modifier
@@ -124,47 +107,35 @@ fun AppIcon(
     }
 
     val context = LocalContext.current
-    var bitmap by remember(app.packageName) {
-        mutableStateOf(iconBitmapCache.get(app.packageName))
+    var imageBitmap by remember(app.packageName) {
+        mutableStateOf(IconCacheManager.get(app.packageName))
     }
 
-    LaunchedEffect(app.packageName) {
-        if (bitmap == null) {
-            bitmap = withContext(Dispatchers.IO) {
-                loadAppBitmap(context, app)
+    if (imageBitmap == null) {
+        LaunchedEffect(app.packageName) {
+            imageBitmap = withContext(Dispatchers.IO) {
+                IconCacheManager.loadAndCache(context, app.packageName)
             }
         }
     }
 
-    if (bitmap != null) {
-        val colorFilter = remember(iconStyle) {
-            when (iconStyle) {
-                IconStyle.MONOCHROME -> {
-                    val matrix = ColorMatrix().apply {
-                        setToSaturation(0f)
-                    }
-                    ColorFilter.colorMatrix(matrix)
-                }
-                else -> null
-            }
-        }
-
+    val currentBmp = imageBitmap
+    if (currentBmp != null) {
         Image(
-            bitmap = bitmap!!.asImageBitmap(),
+            bitmap = currentBmp,
             contentDescription = app.label,
-            colorFilter = colorFilter,
+            colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
             modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(size * 0.22f))
         )
     } else {
-        // İkon arka planda yüklenirken anlık gösterilen hafif harf rozeti
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
             modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(size * 0.22f))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
             contentAlignment = Alignment.Center
         ) {
             Text(

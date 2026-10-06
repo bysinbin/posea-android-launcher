@@ -1,7 +1,7 @@
 package com.bysinbin.posea.model
 
-import android.graphics.drawable.Drawable
 import android.os.UserHandle
+import androidx.compose.runtime.Immutable
 
 /**
  * Launcher modları:
@@ -45,18 +45,19 @@ enum class IconStyle(val title: String, val description: String) {
 /**
  * Cihazda yüklü olan başlatılabilir uygulama bilgisi
  */
+@Immutable
 data class AppModel(
     val label: String,
     val packageName: String,
     val activityName: String,
     val userHandle: UserHandle? = null,
-    val isFavorite: Boolean = false,
-    val icon: Drawable? = null
+    val isFavorite: Boolean = false
 )
 
 /**
  * Kullanıcı tercihleri ve Launcher durumu
  */
+@Immutable
 data class UserPreferences(
     val mode: LauncherMode = LauncherMode.HYBRID,
     val iconStyle: IconStyle = IconStyle.COLOR,

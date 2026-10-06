@@ -41,6 +41,7 @@ fun HybridView(
     Column(modifier = modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
+            beyondViewportPageCount = 1,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()

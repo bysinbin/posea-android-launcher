@@ -12,11 +12,14 @@ import com.bysinbin.posea.model.LauncherMode
 import com.bysinbin.posea.model.UserPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import androidx.compose.runtime.Immutable
+import com.bysinbin.posea.ui.components.IconCacheManager
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class LauncherUiState(
     val isLoading: Boolean = true,
     val preferences: UserPreferences = UserPreferences(),
@@ -38,6 +41,15 @@ class LauncherViewModel @JvmOverloads constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _isDrawerOpen = MutableStateFlow(false)
     private val _isSettingsOpen = MutableStateFlow(false)
+
+    init {
+        // İkonları arka plan iş parçacığında önceden belleğe alarak 120 FPS akıcılık sağla
+        viewModelScope.launch {
+            appsRepository.installedAppsFlow.collect { apps ->
+                IconCacheManager.preload(application, apps)
+            }
+        }
+    }
 
     val uiState: StateFlow<LauncherUiState> = combine(
         appsRepository.installedAppsFlow,

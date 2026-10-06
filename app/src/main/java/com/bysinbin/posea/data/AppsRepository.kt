@@ -96,8 +96,7 @@ class AppsRepository(
                         label = label,
                         packageName = activity.applicationInfo.packageName,
                         activityName = activity.name,
-                        userHandle = profile,
-                        icon = null
+                        userHandle = profile
                     )
                 )
             }
