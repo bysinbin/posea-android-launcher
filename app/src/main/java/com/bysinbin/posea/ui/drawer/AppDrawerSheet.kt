@@ -138,6 +138,13 @@ fun AppDrawerSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val onItemClick: (AppModel) -> Unit = remember(onAppClick, onDismiss) {
+                { app ->
+                    onAppClick(app)
+                    onDismiss()
+                }
+            }
+
             // Uygulamalar Listesi
             LazyColumn(
                 modifier = Modifier
@@ -146,16 +153,17 @@ fun AppDrawerSheet(
                     .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(filteredApps, key = { it.packageName }) { app ->
+                items(
+                    items = filteredApps,
+                    key = { "${it.packageName}/${it.activityName}" },
+                    contentType = { "app_list_item" }
+                ) { app ->
                     AppListItem(
                         app = app,
                         iconStyle = iconStyle,
-                        onClick = {
-                            onAppClick(app)
-                            onDismiss()
-                        },
-                        onLongClick = { onAppLongClick(app) },
-                        onToggleFavorite = { onToggleFavorite(app.packageName) }
+                        onAppClick = onItemClick,
+                        onAppLongClick = onAppLongClick,
+                        onToggleFavorite = onToggleFavorite
                     )
                 }
 

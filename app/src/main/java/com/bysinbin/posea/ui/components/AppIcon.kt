@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 
 /**
@@ -59,23 +61,33 @@ object IconCacheManager {
             null
         } ?: return null
 
-        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 144
-        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 144
-        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
+        val imageBmp = if (drawable is BitmapDrawable && drawable.bitmap != null && !drawable.bitmap.isRecycled) {
+            drawable.bitmap.asImageBitmap()
+        } else {
+            val width = if (drawable.intrinsicWidth in 1..256) drawable.intrinsicWidth else 120
+            val height = if (drawable.intrinsicHeight in 1..256) drawable.intrinsicHeight else 120
+            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bmp.asImageBitmap()
+        }
 
-        val imageBmp = bmp.asImageBitmap()
         imageBitmapCache.put(packageName, imageBmp)
         return imageBmp
     }
 
-    suspend fun preload(context: Context, apps: List<AppModel>) = withContext(Dispatchers.Default) {
-        for (app in apps) {
-            if (imageBitmapCache.get(app.packageName) == null) {
-                loadAndCache(context, app.packageName)
-            }
+    suspend fun preload(context: Context, apps: List<AppModel>) = withContext(Dispatchers.IO) {
+        val uncached = apps.filter { imageBitmapCache.get(it.packageName) == null }
+        if (uncached.isEmpty()) return@withContext
+
+        // Maksimum 6 paralel parçalı hızlı önbelleğe alma
+        uncached.chunked(6).forEach { chunk ->
+            chunk.map { app ->
+                async {
+                    loadAndCache(context, app.packageName)
+                }
+            }.awaitAll()
         }
     }
 }
@@ -106,35 +118,44 @@ fun AppIcon(
         return
     }
 
-    val context = LocalContext.current
-    var imageBitmap by remember(app.packageName) {
-        mutableStateOf(IconCacheManager.get(app.packageName))
+    val cachedBmp = IconCacheManager.get(app.packageName)
+    if (cachedBmp != null) {
+        // HIZLI YOL: Sıfır coroutine, sıfır state, anında doğrudan çizim
+        Image(
+            bitmap = cachedBmp,
+            contentDescription = app.label,
+            colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
+            modifier = modifier.size(size)
+        )
+        return
     }
 
-    if (imageBitmap == null) {
-        LaunchedEffect(app.packageName) {
-            imageBitmap = withContext(Dispatchers.IO) {
-                IconCacheManager.loadAndCache(context, app.packageName)
-            }
+    // YAVAŞ YOL: Sadece ikon bellekte henüz yoksa
+    val context = LocalContext.current
+    var asyncBmp by remember(app.packageName) {
+        mutableStateOf<ImageBitmap?>(null)
+    }
+
+    LaunchedEffect(app.packageName) {
+        asyncBmp = withContext(Dispatchers.IO) {
+            IconCacheManager.loadAndCache(context, app.packageName)
         }
     }
 
-    val currentBmp = imageBitmap
+    val currentBmp = asyncBmp
     if (currentBmp != null) {
         Image(
             bitmap = currentBmp,
             contentDescription = app.label,
             colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
-            modifier = modifier
-                .size(size)
-                .clip(RoundedCornerShape(size * 0.22f))
+            modifier = modifier.size(size)
         )
     } else {
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
             modifier = modifier
                 .size(size)
-                .clip(RoundedCornerShape(size * 0.22f))
+                .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
             contentAlignment = Alignment.Center
         ) {

@@ -67,12 +67,16 @@ fun MinimalistView(
                 .padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            items(favoriteApps, key = { it.packageName }) { app ->
+            items(
+                items = favoriteApps,
+                key = { "${it.packageName}/${it.activityName}" },
+                contentType = { "fav_app_item" }
+            ) { app ->
                 AppListItem(
                     app = app,
                     iconStyle = iconStyle,
-                    onClick = { onAppClick(app) },
-                    onLongClick = { onAppLongClick(app) },
+                    onAppClick = onAppClick,
+                    onAppLongClick = onAppLongClick,
                     textColor = MaterialTheme.colorScheme.onBackground
                 )
             }

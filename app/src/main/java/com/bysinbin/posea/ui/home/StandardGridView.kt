@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,25 +56,7 @@ fun StandardGridView(
             .fillMaxSize()
             .padding(horizontal = 8.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Saat & Tarih başlığı
-        ClockHeader(
-            alignment = Alignment.CenterHorizontally,
-            textColor = MaterialTheme.colorScheme.onBackground
-        )
-
-        // Native Android Widget Alanı
-        WidgetContainer(
-            widgetIds = pinnedWidgetIds,
-            widgetManager = widgetManager,
-            onAddWidgetClick = onAddWidgetClick,
-            onRemoveWidget = onRemoveWidget
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Uygulama Izgarası (4 Sütun)
+        // Uygulama Izgarası (4 Sütun) - Saat ve Widget ile Birlikte Akıcı Tek Kaydırma
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             modifier = Modifier
@@ -81,12 +65,55 @@ fun StandardGridView(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(apps, key = { it.packageName }) { app ->
+            // 1. Saat & Tarih Başlığı (Tüm sütunları kaplar)
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                key = "header_clock",
+                contentType = "header_clock"
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ClockHeader(
+                        alignment = Alignment.CenterHorizontally,
+                        textColor = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
+
+            // 2. Native Android Widget Alanı (Tüm sütunları kaplar)
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                key = "header_widget",
+                contentType = "header_widget"
+            ) {
+                WidgetContainer(
+                    widgetIds = pinnedWidgetIds,
+                    widgetManager = widgetManager,
+                    onAddWidgetClick = onAddWidgetClick,
+                    onRemoveWidget = onRemoveWidget
+                )
+            }
+
+            // 3. Boşluk
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                key = "header_spacer",
+                contentType = "header_spacer"
+            ) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            // 4. Uygulama İkonları Izgarası (4 Sütun, 100% Atlanabilir / Skippable)
+            items(
+                items = apps,
+                key = { "${it.packageName}/${it.activityName}" },
+                contentType = { "app_grid_item" }
+            ) { app ->
                 AppGridItem(
                     app = app,
                     iconStyle = iconStyle,
-                    onClick = { onAppClick(app) },
-                    onLongClick = { onAppLongClick(app) },
+                    onAppClick = onAppClick,
+                    onAppLongClick = onAppLongClick,
                     textColor = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -109,11 +136,12 @@ fun StandardGridView(
             ) {
                 // Dock uygulamaları
                 dockApps.take(4).forEach { app ->
+                    val click = remember(app, onAppClick) { { onAppClick(app) } }
                     Box(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .clickable { onAppClick(app) },
+                            .clickable(onClick = click),
                         contentAlignment = Alignment.Center
                     ) {
                         AppIcon(app = app, iconStyle = iconStyle, size = 46.dp)

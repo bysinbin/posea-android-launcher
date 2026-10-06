@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,20 +39,26 @@ import com.bysinbin.posea.model.IconStyle
 fun AppListItem(
     app: AppModel,
     iconStyle: IconStyle,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    onToggleFavorite: (() -> Unit)? = null,
+    onAppClick: (AppModel) -> Unit,
+    onAppLongClick: (AppModel) -> Unit,
+    onToggleFavorite: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
+    val click = remember(app, onAppClick) { { onAppClick(app) } }
+    val longClick = remember(app, onAppLongClick) { { onAppLongClick(app) } }
+    val toggleFav: (() -> Unit)? = remember(app.packageName, onToggleFavorite) {
+        if (onToggleFavorite != null) { { onToggleFavorite(app.packageName) } } else null
+    }
+
     Surface(
         color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
+                onClick = click,
+                onLongClick = longClick
             )
     ) {
         Row(
@@ -78,8 +85,8 @@ fun AppListItem(
                 modifier = Modifier.weight(1f)
             )
 
-            if (onToggleFavorite != null) {
-                IconButton(onClick = onToggleFavorite) {
+            if (toggleFav != null) {
+                IconButton(onClick = toggleFav) {
                     Icon(
                         imageVector = if (app.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                         contentDescription = "Favorilere Ekle/Kaldır",
@@ -97,17 +104,19 @@ fun AppListItem(
 fun AppGridItem(
     app: AppModel,
     iconStyle: IconStyle,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onAppClick: (AppModel) -> Unit,
+    onAppLongClick: (AppModel) -> Unit,
     modifier: Modifier = Modifier,
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
+    val click = remember(app, onAppClick) { { onAppClick(app) } }
+    val longClick = remember(app, onAppLongClick) { { onAppLongClick(app) } }
+
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
+                onClick = click,
+                onLongClick = longClick
             )
             .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
