@@ -43,12 +43,24 @@ import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.ui.components.AppListItem
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.rememberCoroutineScope
+import com.bysinbin.posea.ui.components.AppGridItem
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.fillMaxHeight
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDrawerSheet(
     isOpen: Boolean,
     searchQuery: String,
     filteredApps: List<AppModel>,
+    recentApps: List<AppModel> = emptyList(),
     iconStyle: IconStyle,
     onQueryChange: (String) -> Unit,
     onAppClick: (AppModel) -> Unit,
@@ -60,6 +72,8 @@ fun AppDrawerSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val focusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -77,7 +91,7 @@ fun AppDrawerSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
                 verticalAlignment = Alignment.CenterVertically
@@ -136,8 +150,6 @@ fun AppDrawerSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             val onItemClick: (AppModel) -> Unit = remember(onAppClick, onDismiss) {
                 { app ->
                     onAppClick(app)
@@ -145,40 +157,114 @@ fun AppDrawerSheet(
                 }
             }
 
-            // Uygulamalar Listesi
-            LazyColumn(
+            // Son Kullanılanlar (Arama yapılmıyorsa göster)
+            if (searchQuery.isBlank() && recentApps.isNotEmpty()) {
+                Text(
+                    text = "Son Kullanılanlar",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    recentApps.take(4).forEach { app ->
+                        AppGridItem(
+                            app = app,
+                            iconStyle = iconStyle,
+                            onAppClick = onItemClick,
+                            onAppLongClick = onAppLongClick
+                        )
+                    }
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.3f)
+                )
+            }
+
+            // A-Z Harf İndeksi
+            val alphabet = remember(filteredApps) {
+                filteredApps.mapNotNull { it.label.firstOrNull()?.uppercaseChar() }.distinct()
+            }
+
+            // Uygulamalar Listesi ve Hızlı Harf Kaydırıcı
+            Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(
-                    items = filteredApps,
-                    key = { "${it.packageName}/${it.activityName}" },
-                    contentType = { "app_list_item" }
-                ) { app ->
-                    AppListItem(
-                        app = app,
-                        iconStyle = iconStyle,
-                        onAppClick = onItemClick,
-                        onAppLongClick = onAppLongClick,
-                        onToggleFavorite = onToggleFavorite
-                    )
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(start = 8.dp, end = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(
+                        items = filteredApps,
+                        key = { "${it.packageName}/${it.activityName}" },
+                        contentType = { "app_list_item" }
+                    ) { app ->
+                        AppListItem(
+                            app = app,
+                            iconStyle = iconStyle,
+                            onAppClick = onItemClick,
+                            onAppLongClick = onAppLongClick,
+                            onToggleFavorite = onToggleFavorite
+                        )
+                    }
+
+                    if (filteredApps.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "'$searchQuery' ile eşleşen uygulama bulunamadı.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
-                if (filteredApps.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                // Sağ Taraf A-Z Hızlı Kaydırma Barı
+                if (alphabet.size > 2) {
+                    Column(
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        alphabet.forEach { letter ->
                             Text(
-                                text = "'$searchQuery' ile eşleşen uygulama bulunamadı.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp
+                                text = letter.toString(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        val targetIdx = filteredApps.indexOfFirst {
+                                            it.label.startsWith(letter, ignoreCase = true)
+                                        }
+                                        if (targetIdx >= 0) {
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIdx)
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 2.dp, horizontal = 4.dp)
                             )
                         }
                     }

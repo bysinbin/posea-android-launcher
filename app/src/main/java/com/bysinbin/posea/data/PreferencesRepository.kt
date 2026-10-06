@@ -34,6 +34,11 @@ class PreferencesRepository(private val context: Context) {
         val HOME_WIDGET_IDS = stringPreferencesKey("home_widget_ids")
         val FOLDERS_JSON = stringPreferencesKey("folders_json")
         val GRID_COLUMNS = intPreferencesKey("grid_columns")
+        val CUSTOM_NAMES_JSON = stringPreferencesKey("custom_names_json")
+        val RECENT_PACKAGES = stringPreferencesKey("recent_packages")
+        val AMOLED_BLACK = booleanPreferencesKey("amoled_black")
+        val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
+        val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { preferences ->
@@ -44,6 +49,9 @@ class PreferencesRepository(private val context: Context) {
         val hidden = preferences[Keys.HIDDEN_PACKAGES] ?: emptySet()
         val showClock = preferences[Keys.SHOW_CLOCK] ?: true
         val gridCols = preferences[Keys.GRID_COLUMNS] ?: 4
+        val isAmoled = preferences[Keys.AMOLED_BLACK] ?: false
+        val isDynamic = preferences[Keys.DYNAMIC_THEME] ?: true
+        val iconPack = preferences[Keys.ICON_PACK_PACKAGE]
 
         val widgetIdsRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
         val widgetIds = if (widgetIdsRaw.isBlank()) emptyList() else widgetIdsRaw.split(",").mapNotNull { it.toIntOrNull() }
@@ -53,6 +61,12 @@ class PreferencesRepository(private val context: Context) {
 
         val foldersRaw = preferences[Keys.FOLDERS_JSON] ?: ""
         val folders = parseFolders(foldersRaw)
+
+        val customNamesRaw = preferences[Keys.CUSTOM_NAMES_JSON] ?: ""
+        val customNames = parseCustomNames(customNamesRaw)
+
+        val recentsRaw = preferences[Keys.RECENT_PACKAGES] ?: ""
+        val recentPackages = if (recentsRaw.isBlank()) emptyList() else recentsRaw.split(",").filter { it.isNotBlank() }
 
         UserPreferences(
             mode = try {
@@ -72,8 +86,68 @@ class PreferencesRepository(private val context: Context) {
             pinnedWidgetIds = widgetIds,
             homeWidgetIds = homeWidgetIds,
             showClock = showClock,
-            gridColumns = gridCols.coerceIn(3, 6)
+            gridColumns = gridCols.coerceIn(3, 6),
+            customAppNames = customNames,
+            recentAppPackages = recentPackages,
+            isAmoledBlack = isAmoled,
+            isDynamicTheme = isDynamic,
+            selectedIconPackPackage = iconPack
         )
+    }
+
+    suspend fun setCustomAppName(packageName: String, customName: String) {
+        context.dataStore.edit { preferences ->
+            val currentRaw = preferences[Keys.CUSTOM_NAMES_JSON] ?: ""
+            val map = parseCustomNames(currentRaw).toMutableMap()
+            if (customName.isBlank()) {
+                map.remove(packageName)
+            } else {
+                map[packageName] = customName.trim()
+            }
+            preferences[Keys.CUSTOM_NAMES_JSON] = serializeCustomNames(map)
+        }
+    }
+
+    suspend fun resetCustomAppName(packageName: String) {
+        context.dataStore.edit { preferences ->
+            val currentRaw = preferences[Keys.CUSTOM_NAMES_JSON] ?: ""
+            val map = parseCustomNames(currentRaw).toMutableMap()
+            map.remove(packageName)
+            preferences[Keys.CUSTOM_NAMES_JSON] = serializeCustomNames(map)
+        }
+    }
+
+    suspend fun addRecentApp(packageName: String) {
+        context.dataStore.edit { preferences ->
+            val currentRaw = preferences[Keys.RECENT_PACKAGES] ?: ""
+            val list = if (currentRaw.isBlank()) mutableListOf() else currentRaw.split(",").filter { it.isNotBlank() }.toMutableList()
+            list.remove(packageName)
+            list.add(0, packageName)
+            val trimmed = list.take(8)
+            preferences[Keys.RECENT_PACKAGES] = trimmed.joinToString(",")
+        }
+    }
+
+    suspend fun setAmoledBlack(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.AMOLED_BLACK] = enabled
+        }
+    }
+
+    suspend fun setDynamicTheme(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.DYNAMIC_THEME] = enabled
+        }
+    }
+
+    suspend fun setIconPackPackage(packageName: String?) {
+        context.dataStore.edit { preferences ->
+            if (packageName == null) {
+                preferences.remove(Keys.ICON_PACK_PACKAGE)
+            } else {
+                preferences[Keys.ICON_PACK_PACKAGE] = packageName
+            }
+        }
     }
 
     suspend fun setGridColumns(columns: Int) {
@@ -274,6 +348,28 @@ class PreferencesRepository(private val context: Context) {
                 list
             } catch (_: Exception) {
                 emptyList()
+            }
+        }
+
+        fun serializeCustomNames(map: Map<String, String>): String {
+            val obj = JSONObject()
+            map.forEach { (k, v) -> obj.put(k, v) }
+            return obj.toString()
+        }
+
+        fun parseCustomNames(raw: String): Map<String, String> {
+            if (raw.isBlank()) return emptyMap()
+            return try {
+                val obj = JSONObject(raw)
+                val map = mutableMapOf<String, String>()
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    map[key] = obj.getString(key)
+                }
+                map
+            } catch (_: Exception) {
+                emptyMap()
             }
         }
     }

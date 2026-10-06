@@ -46,6 +46,11 @@ import kotlinx.coroutines.withContext
 object IconCacheManager {
     val imageBitmapCache = LruCache<String, ImageBitmap>(400)
     private val monochromeFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    var activeIconPack: String? = null
+
+    fun clearCache() {
+        imageBitmapCache.evictAll()
+    }
 
     fun get(packageName: String): ImageBitmap? = imageBitmapCache.get(packageName)
 
@@ -55,10 +60,15 @@ object IconCacheManager {
         val cached = imageBitmapCache.get(packageName)
         if (cached != null) return cached
 
-        val drawable = try {
-            context.packageManager.getApplicationIcon(packageName)
-        } catch (_: Exception) {
-            null
+        val drawable = if (activeIconPack != null) {
+            IconPackManager.loadIconFromPack(context, activeIconPack!!, packageName)
+                ?: try { context.packageManager.getApplicationIcon(packageName) } catch (_: Exception) { null }
+        } else {
+            try {
+                context.packageManager.getApplicationIcon(packageName)
+            } catch (_: Exception) {
+                null
+            }
         } ?: return null
 
         val imageBmp = if (drawable is BitmapDrawable && drawable.bitmap != null && !drawable.bitmap.isRecycled) {

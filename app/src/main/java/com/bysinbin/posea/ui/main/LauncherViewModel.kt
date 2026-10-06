@@ -26,6 +26,7 @@ data class LauncherUiState(
     val allApps: List<AppModel> = emptyList(),
     val favoriteApps: List<AppModel> = emptyList(),
     val hiddenApps: List<AppModel> = emptyList(),
+    val recentApps: List<AppModel> = emptyList(),
     val searchQuery: String = "",
     val filteredApps: List<AppModel> = emptyList(),
     val isDrawerOpen: Boolean = false,
@@ -59,17 +60,26 @@ class LauncherViewModel @JvmOverloads constructor(
         _isDrawerOpen,
         _isSettingsOpen
     ) { apps, preferences, query, isDrawerOpen, isSettingsOpen ->
-        // Favori durumlarını uygula
-        val appsWithFavorites = apps.map { app ->
-            app.copy(isFavorite = preferences.favoritePackages.contains(app.packageName))
-        }
+        // Özel isimleri ve favori durumlarını uygula
+        val appsProcessed = apps.map { app ->
+            val customLabel = preferences.customAppNames[app.packageName]
+            val finalLabel = if (!customLabel.isNullOrBlank()) customLabel else app.label
+            app.copy(
+                label = finalLabel,
+                isFavorite = preferences.favoritePackages.contains(app.packageName)
+            )
+        }.sortedBy { it.label.lowercase() }
 
         // Gizlenen uygulamaları ayır
-        val visibleApps = appsWithFavorites.filter { !preferences.hiddenPackages.contains(it.packageName) }
-        val hiddenApps = appsWithFavorites.filter { preferences.hiddenPackages.contains(it.packageName) }
+        val visibleApps = appsProcessed.filter { !preferences.hiddenPackages.contains(it.packageName) }
+        val hiddenApps = appsProcessed.filter { preferences.hiddenPackages.contains(it.packageName) }
 
         // Favori uygulamaları filtrele
         val favoriteApps = visibleApps.filter { it.isFavorite }
+
+        // Son açılan uygulamalar
+        val appMap = visibleApps.associateBy { it.packageName }
+        val recentApps = preferences.recentAppPackages.mapNotNull { appMap[it] }.take(5)
 
         // Arama filtresi
         val filteredApps = if (query.isBlank()) {
@@ -87,6 +97,7 @@ class LauncherViewModel @JvmOverloads constructor(
             allApps = visibleApps,
             favoriteApps = favoriteApps,
             hiddenApps = hiddenApps,
+            recentApps = recentApps,
             searchQuery = query,
             filteredApps = filteredApps,
             isDrawerOpen = isDrawerOpen,
@@ -115,6 +126,7 @@ class LauncherViewModel @JvmOverloads constructor(
 
     fun launchApp(app: AppModel) {
         viewModelScope.launch {
+            preferencesRepository.addRecentApp(app.packageName)
             appsRepository.launchApp(app)
         }
     }
@@ -132,6 +144,36 @@ class LauncherViewModel @JvmOverloads constructor(
     fun toggleHideApp(packageName: String) {
         viewModelScope.launch {
             preferencesRepository.toggleHideApp(packageName)
+        }
+    }
+
+    fun setCustomAppName(packageName: String, customName: String) {
+        viewModelScope.launch {
+            preferencesRepository.setCustomAppName(packageName, customName)
+        }
+    }
+
+    fun resetCustomAppName(packageName: String) {
+        viewModelScope.launch {
+            preferencesRepository.resetCustomAppName(packageName)
+        }
+    }
+
+    fun setAmoledBlack(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setAmoledBlack(enabled)
+        }
+    }
+
+    fun setDynamicTheme(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setDynamicTheme(enabled)
+        }
+    }
+
+    fun setIconPackPackage(packageName: String?) {
+        viewModelScope.launch {
+            preferencesRepository.setIconPackPackage(packageName)
         }
     }
 

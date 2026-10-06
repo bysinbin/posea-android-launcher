@@ -64,6 +64,12 @@ data class AppFolder(
     val packageNames: List<String> = emptyList()
 )
 
+@Immutable
+data class IconPackInfo(
+    val packageName: String,
+    val label: String
+)
+
 /**
  * Kullanıcı tercihleri ve Launcher durumu
  */
@@ -79,7 +85,12 @@ data class UserPreferences(
     val isOnboardingCompleted: Boolean = false,
     val showClock: Boolean = true,
     val autoOpenKeyboard: Boolean = false,
-    val gridColumns: Int = 4
+    val gridColumns: Int = 4,
+    val customAppNames: Map<String, String> = emptyMap(),
+    val recentAppPackages: List<String> = emptyList(),
+    val isAmoledBlack: Boolean = false,
+    val isDynamicTheme: Boolean = true,
+    val selectedIconPackPackage: String? = null
 )
 
 /**

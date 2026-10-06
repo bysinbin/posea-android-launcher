@@ -50,15 +50,32 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import com.bysinbin.posea.model.AppFolder
 import com.bysinbin.posea.ui.components.FolderDetailDialog
+import android.provider.Settings
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import com.bysinbin.posea.data.system.PoseaAccessibilityService
+
+private fun expandNotificationPanel(context: android.content.Context) {
+    try {
+        val statusBarService = context.getSystemService("statusbar")
+        val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+        val method = statusBarManagerClass.getMethod("expandNotificationsPanel")
+        method.invoke(statusBarService)
+    } catch (_: Exception) {}
+}
 
 @Composable
 fun MainScreen(
@@ -71,10 +88,14 @@ fun MainScreen(
     var activeFolder by remember { mutableStateOf<AppFolder?>(null) }
     var isNewFolderDialogOpen by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
+    var appToRename by remember { mutableStateOf<AppModel?>(null) }
+    var renameInput by remember { mutableStateOf("") }
+    var totalDragY by remember { mutableStateOf(0f) }
 
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
     var isAddingToHomeWidget by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Widget dinleyicisini yaşam döngüsüne bağla
@@ -166,9 +187,12 @@ fun MainScreen(
                 selectedAppForMenu != null ||
                 activeFolder != null ||
                 selectedAppForFolder != null ||
-                isNewFolderDialogOpen
+                isNewFolderDialogOpen ||
+                appToRename != null
     ) {
-        if (activeFolder != null) {
+        if (appToRename != null) {
+            appToRename = null
+        } else if (activeFolder != null) {
             activeFolder = null
         } else if (isNewFolderDialogOpen) {
             isNewFolderDialogOpen = false
@@ -206,12 +230,46 @@ fun MainScreen(
         return
     }
 
-    // Ana Launcher Ekranı
+    // Ana Launcher Ekranı (Yukarı/Aşağı Jestler & Çift Dokunma ile Ekran Kilitleme)
     Box(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (!PoseaAccessibilityService.lockScreen()) {
+                            Toast.makeText(context, "Ekranı kilitlemek için Erişilebilirlik iznini açın", Toast.LENGTH_SHORT).show()
+                            try {
+                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { totalDragY = 0f },
+                    onDragEnd = {
+                        if (totalDragY > 100f) {
+                            // Aşağı kaydırma: Bildirim panelini aç
+                            expandNotificationPanel(context)
+                        } else if (totalDragY < -100f) {
+                            // Yukarı kaydırma: Çekmeceyi aç
+                            viewModel.setDrawerOpen(true)
+                        }
+                        totalDragY = 0f
+                    },
+                    onDragCancel = { totalDragY = 0f },
+                    onVerticalDrag = { _, dragAmount ->
+                        totalDragY += dragAmount
+                    }
+                )
+            }
     ) {
         // Kullanıcı tercihine göre seçilen mod görünümü
         when (uiState.preferences.mode) {
@@ -274,6 +332,7 @@ fun MainScreen(
             isOpen = uiState.isDrawerOpen,
             searchQuery = uiState.searchQuery,
             filteredApps = uiState.filteredApps,
+            recentApps = uiState.recentApps,
             iconStyle = uiState.preferences.iconStyle,
             onQueryChange = { viewModel.onSearchQueryChange(it) },
             onAppClick = { viewModel.launchApp(it) },
@@ -291,11 +350,14 @@ fun MainScreen(
             onIconStyleChange = { viewModel.setIconStyle(it) },
             onGridColumnsChange = { viewModel.setGridColumns(it) },
             onToggleHideApp = { viewModel.toggleHideApp(it) },
+            onAmoledBlackChange = { viewModel.setAmoledBlack(it) },
+            onDynamicThemeChange = { viewModel.setDynamicTheme(it) },
+            onIconPackChange = { viewModel.setIconPackPackage(it) },
             onResetOnboarding = { viewModel.resetOnboarding() },
             onDismiss = { viewModel.setSettingsOpen(false) }
         )
 
-        // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Favori, Gizle, Klasöre Ekle, Bilgi)
+        // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Favori, Gizle, Yeniden Adlandır, Klasöre Ekle, Bilgi)
         selectedAppForMenu?.let { app ->
             AlertDialog(
                 onDismissRequest = { selectedAppForMenu = null },
@@ -325,7 +387,29 @@ fun MainScreen(
                             }
                         }
 
-                        // 2. Uygulamayı Gizle
+                        // 2. Yeniden Adlandır
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    renameInput = app.label
+                                    appToRename = app
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Yeniden Adlandır")
+                            }
+                        }
+
+                        // 3. Uygulamayı Gizle
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -346,7 +430,7 @@ fun MainScreen(
                             }
                         }
 
-                        // 3. Klasöre Ekle
+                        // 4. Klasöre Ekle
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -367,7 +451,7 @@ fun MainScreen(
                             }
                         }
 
-                        // 4. Uygulama Bilgisi
+                        // 5. Uygulama Bilgisi
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -392,6 +476,48 @@ fun MainScreen(
                 confirmButton = {
                     TextButton(onClick = { selectedAppForMenu = null }) {
                         Text("Kapat")
+                    }
+                }
+            )
+        }
+
+        // Uygulama Yeniden Adlandırma İletişim Kutusu
+        appToRename?.let { app ->
+            AlertDialog(
+                onDismissRequest = { appToRename = null },
+                title = { Text("Uygulamayı Yeniden Adlandır") },
+                text = {
+                    androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = renameInput,
+                            onValueChange = { renameInput = it },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(app.label) }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        if (renameInput.isNotBlank()) {
+                            viewModel.setCustomAppName(app.packageName, renameInput)
+                        }
+                        appToRename = null
+                    }) {
+                        Text("Kaydet")
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            viewModel.resetCustomAppName(app.packageName)
+                            appToRename = null
+                        }) {
+                            Text("Sıfırla")
+                        }
+                        TextButton(onClick = { appToRename = null }) {
+                            Text("İptal")
+                        }
                     }
                 }
             )

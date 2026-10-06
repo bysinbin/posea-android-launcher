@@ -49,6 +49,9 @@ import androidx.compose.runtime.setValue
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.UserPreferences
 
+import androidx.compose.material3.Switch
+import com.bysinbin.posea.ui.components.IconPackManager
+
 @Composable
 fun SettingsDialog(
     isOpen: Boolean,
@@ -58,6 +61,9 @@ fun SettingsDialog(
     onIconStyleChange: (IconStyle) -> Unit,
     onGridColumnsChange: (Int) -> Unit,
     onToggleHideApp: (String) -> Unit,
+    onAmoledBlackChange: (Boolean) -> Unit = {},
+    onDynamicThemeChange: (Boolean) -> Unit = {},
+    onIconPackChange: (String?) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -204,6 +210,123 @@ fun SettingsDialog(
                             )
                         }
                     }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
+
+                // AMOLED Saf Siyah Modu
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAmoledBlackChange(!preferences.isAmoledBlack) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "AMOLED Saf Siyah Modu",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Piksel tasarrufu için gerçek siyah (#000000) arka plan.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = preferences.isAmoledBlack,
+                        onCheckedChange = onAmoledBlackChange
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Material You Dinamik Renkler
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDynamicThemeChange(!preferences.isDynamicTheme) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Material You (Dinamik Renkler)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Duvar kağıdınızın renk tonlarına göre arayüz renkleri.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = preferences.isDynamicTheme,
+                        onCheckedChange = onDynamicThemeChange
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
+
+                // İkon Paketi Seçimi
+                Text(
+                    text = "İkon Paketi",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                val installedPacks = remember { IconPackManager.getInstalledIconPacks(context) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onIconPackChange(null) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = preferences.selectedIconPackPackage == null,
+                        onClick = { onIconPackChange(null) }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sistem Varsayılanı", style = MaterialTheme.typography.bodyMedium)
+                }
+
+                installedPacks.forEach { pack ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onIconPackChange(pack.packageName) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = preferences.selectedIconPackPackage == pack.packageName,
+                            onClick = { onIconPackChange(pack.packageName) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(pack.label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                if (installedPacks.isEmpty()) {
+                    Text(
+                        text = "Cihazınızda üçüncü parti ikon paketi (Whicons vb.) bulunamadı. Play Store'dan yükleyebilirsiniz.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                    )
                 }
 
                 HorizontalDivider(

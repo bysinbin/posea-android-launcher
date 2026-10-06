@@ -30,6 +30,22 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import android.app.AlarmManager
+import android.content.IntentFilter
+import android.os.BatteryManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BatteryStd
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun ClockHeader(
     modifier: Modifier = Modifier,
@@ -55,10 +71,38 @@ fun ClockHeader(
     val formattedTime = timeFormatter.format(currentTime)
     val formattedDate = dateFormatter.format(currentTime)
 
+    // Pil durumu
+    val batteryInfo = remember(currentTime) {
+        try {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+            val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else null
+            Pair(pct, isCharging)
+        } catch (_: Exception) {
+            Pair(null, false)
+        }
+    }
+
+    // Sonraki alarm
+    val nextAlarmTime = remember(currentTime) {
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            val nextAlarm = alarmManager?.nextAlarmClock
+            nextAlarm?.triggerTime?.let {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it))
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = alignment,
         verticalArrangement = Arrangement.Center
     ) {
@@ -92,7 +136,75 @@ fun ClockHeader(
                     openCalendarApp(context)
                 }
         )
+
+        // Akıllı Bakış (Smart Glance) Çipleri (Pil & Alarm)
+        Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Pil Çipi
+            batteryInfo.first?.let { pct ->
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable { openBatterySettings(context) }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (batteryInfo.second) Icons.Default.BatteryChargingFull else Icons.Default.BatteryStd,
+                        contentDescription = "Pil",
+                        tint = if (batteryInfo.second) MaterialTheme.colorScheme.primary else textColor.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "%$pct",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
+
+            // Alarm Çipi
+            nextAlarmTime?.let { alarm ->
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable { openClockApp(context) }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Alarm,
+                        contentDescription = "Alarm",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = alarm,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
+        }
     }
+}
+
+private fun openBatterySettings(context: Context) {
+    try {
+        val intent = Intent(Intent.ACTION_POWER_USAGE_SUMMARY).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (_: Exception) {}
 }
 
 private fun openClockApp(context: Context) {

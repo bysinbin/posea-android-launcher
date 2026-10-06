@@ -11,19 +11,34 @@ import androidx.compose.ui.graphics.Color
 import com.bysinbin.posea.theme.PoseaLauncherTheme
 import com.bysinbin.posea.ui.main.MainScreen
 
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bysinbin.posea.ui.components.IconCacheManager
+import com.bysinbin.posea.ui.main.LauncherViewModel
+
 class MainActivity : ComponentActivity() {
+    private val viewModel: LauncherViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
         setContent {
-            PoseaLauncherTheme {
-                // Duvar kağıdının görünmesi için şeffaf zemin
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            // İkon paketi senkronizasyonu
+            IconCacheManager.activeIconPack = uiState.preferences.selectedIconPackPackage
+
+            PoseaLauncherTheme(
+                dynamicColor = uiState.preferences.isDynamicTheme,
+                amoledBlack = uiState.preferences.isAmoledBlack
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color.Transparent
+                    color = if (uiState.preferences.isAmoledBlack) Color.Black else Color.Transparent
                 ) {
-                    MainScreen()
+                    MainScreen(viewModel = viewModel)
                 }
             }
         }
