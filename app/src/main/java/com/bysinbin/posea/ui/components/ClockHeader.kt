@@ -46,11 +46,16 @@ import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClockHeader(
     modifier: Modifier = Modifier,
     alignment: Alignment.Horizontal = Alignment.Start,
-    textColor: Color = MaterialTheme.colorScheme.onBackground
+    textColor: Color = MaterialTheme.colorScheme.onBackground,
+    onLongClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -93,8 +98,16 @@ fun ClockHeader(
             try {
                 val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
                 val nextAlarm = alarmManager?.nextAlarmClock
-                nextAlarm?.triggerTime?.let {
-                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it))
+                val showIntent = nextAlarm?.showIntent
+                val creator = showIntent?.creatorPackage
+                val isRealUserAlarm = showIntent != null && (
+                    creator?.contains("clock", ignoreCase = true) == true ||
+                    creator?.contains("alarm", ignoreCase = true) == true
+                )
+                if (isRealUserAlarm && nextAlarm.triggerTime > System.currentTimeMillis()) {
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(nextAlarm.triggerTime))
+                } else {
+                    null
                 }
             } catch (_: Exception) {
                 null
@@ -107,26 +120,32 @@ fun ClockHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = alignment,
         verticalArrangement = Arrangement.Center
     ) {
-        // Saat (Tıklanınca Alarm/Saat uygulamasını açar)
+        // Saat (Tıklanınca Alarm/Saat uygulamasını açar, uzun basınca launcher menüsünü açar)
         Text(
             text = formattedTime,
             fontSize = 58.sp,
             fontWeight = FontWeight.ExtraBold,
             color = textColor,
             letterSpacing = (-1.5).sp,
-            modifier = Modifier.clickable(
+            modifier = Modifier.combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                openClockApp(context)
-            }
+                indication = null,
+                onClick = { openClockApp(context) },
+                onLongClick = onLongClick
+            )
         )
 
-        // Tarih (Tıklanınca Takvim uygulamasını açar)
+        // Tarih (Tıklanınca Takvim uygulamasını açar, uzun basınca launcher menüsünü açar)
         Text(
             text = formattedDate,
             fontSize = 17.sp,
@@ -134,12 +153,12 @@ fun ClockHeader(
             color = textColor.copy(alpha = 0.8f),
             modifier = Modifier
                 .padding(top = 2.dp)
-                .clickable(
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    openCalendarApp(context)
-                }
+                    indication = null,
+                    onClick = { openCalendarApp(context) },
+                    onLongClick = onLongClick
+                )
         )
 
         // Akıllı Bakış (Smart Glance) Çipleri (Pil & Alarm)

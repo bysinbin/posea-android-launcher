@@ -64,6 +64,8 @@ import com.bysinbin.posea.ui.components.AppGridItem
 import com.bysinbin.posea.ui.components.AppListItem
 import kotlinx.coroutines.launch
 
+import androidx.compose.material.icons.filled.Settings
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDrawerSheet(
@@ -76,7 +78,8 @@ fun AppDrawerSheet(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onToggleFavorite: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit = {}
 ) {
     if (!isOpen) return
 
@@ -148,6 +151,21 @@ fun AppDrawerSheet(
                     )
                 )
 
+                // Launcher Ayarları Butonu (Doğrudan Ayarları Açar)
+                IconButton(
+                    onClick = {
+                        onDismiss()
+                        onOpenSettings()
+                    },
+                    modifier = Modifier.padding(end = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Launcher Ayarları",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier.padding(end = 4.dp)
@@ -162,6 +180,50 @@ fun AppDrawerSheet(
 
             val context = LocalContext.current
             val mathResult = remember(searchQuery) { MathEvaluator.evaluate(searchQuery) }
+
+            // Arama "ayar" içeriyorsa hızlı Ayarlar kartı göster
+            val isSearchingSettings = remember(searchQuery) {
+                val q = searchQuery.trim().lowercase()
+                q.isNotEmpty() && ("ayarlar".startsWith(q) || "settings".startsWith(q) || "launcher".startsWith(q))
+            }
+            if (isSearchingSettings) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clickable {
+                            onDismiss()
+                            onOpenSettings()
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Launcher Ayarları",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Görünüm, ikonlar, widget'lar ve gizlilik ayarlarını aç",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+            }
 
             // Canlı Akıllı Hesap Makinesi Kartı
             if (mathResult != null) {

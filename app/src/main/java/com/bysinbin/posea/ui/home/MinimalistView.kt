@@ -52,37 +52,21 @@ fun MinimalistView(
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
     onExpandNotifications: () -> Unit = {},
+    onHomeScreenLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp)
-            .pointerInput(Unit) {
-                var totalDrag = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onDragEnd = {
-                        if (totalDrag > 80f) {
-                            onExpandNotifications()
-                        } else if (totalDrag < -80f) {
-                            onOpenDrawer()
-                        }
-                        totalDrag = 0f
-                    },
-                    onDragCancel = { totalDrag = 0f },
-                    onVerticalDrag = { _, dragAmount ->
-                        totalDrag += dragAmount
-                    }
-                )
-            }
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
         // Sade Dijital Saat & Tarih
         ClockHeader(
             alignment = Alignment.Start,
-            textColor = MaterialTheme.colorScheme.onBackground
+            textColor = MaterialTheme.colorScheme.onBackground,
+            onLongClick = onHomeScreenLongClick
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -95,8 +79,8 @@ fun MinimalistView(
                 .padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Anasayfa Widget Desteği
-            if (widgetManager != null) {
+            // Anasayfa Widget Desteği (Yalnızca kullanıcı widget eklemişse gösterilir)
+            if (widgetManager != null && homeWidgetIds.isNotEmpty()) {
                 item(key = "home_widgets") {
                     WidgetContainer(
                         widgetIds = homeWidgetIds,

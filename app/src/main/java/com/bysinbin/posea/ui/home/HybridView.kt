@@ -44,6 +44,7 @@ fun HybridView(
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
     onExpandNotifications: () -> Unit = {},
+    onHomeScreenLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -68,7 +69,8 @@ fun HybridView(
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
-                    onExpandNotifications = onExpandNotifications
+                    onExpandNotifications = onExpandNotifications,
+                    onHomeScreenLongClick = onHomeScreenLongClick
                 )
                 1 -> StandardGridView(
                     apps = allApps,
@@ -86,7 +88,8 @@ fun HybridView(
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
-                    onExpandNotifications = onExpandNotifications
+                    onExpandNotifications = onExpandNotifications,
+                    onHomeScreenLongClick = onHomeScreenLongClick
                 )
             }
         }

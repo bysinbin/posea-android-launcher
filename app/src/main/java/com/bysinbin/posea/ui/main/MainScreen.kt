@@ -6,7 +6,9 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -76,6 +78,9 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import com.bysinbin.posea.data.system.PoseaAccessibilityService
 
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.Widgets
 import com.bysinbin.posea.data.system.PoseaNotificationService
 
 private fun expandNotificationPanel(context: android.content.Context) {
@@ -101,6 +106,7 @@ fun MainScreen(
     var newFolderName by remember { mutableStateOf("") }
     var appToRename by remember { mutableStateOf<AppModel?>(null) }
     var renameInput by remember { mutableStateOf("") }
+    var isHomeScreenMenuOpen by remember { mutableStateOf(false) }
 
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
     var isAddingToHomeWidget by remember { mutableStateOf(false) }
@@ -198,6 +204,7 @@ fun MainScreen(
     BackHandler(
         enabled = uiState.isDrawerOpen ||
                 uiState.isSettingsOpen ||
+                isHomeScreenMenuOpen ||
                 selectedAppForMenu != null ||
                 activeFolder != null ||
                 selectedAppForFolder != null ||
@@ -214,6 +221,8 @@ fun MainScreen(
             selectedAppForFolder = null
         } else if (selectedAppForMenu != null) {
             selectedAppForMenu = null
+        } else if (isHomeScreenMenuOpen) {
+            isHomeScreenMenuOpen = false
         } else if (uiState.isDrawerOpen) {
             viewModel.setDrawerOpen(false)
         } else if (uiState.isSettingsOpen) {
@@ -262,6 +271,9 @@ fun MainScreen(
                                 context.startActivity(intent)
                             } catch (_: Exception) {}
                         }
+                    },
+                    onLongPress = {
+                        isHomeScreenMenuOpen = true
                     }
                 )
             }
@@ -311,7 +323,8 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
-                    onExpandNotifications = onExpandNotifications
+                    onExpandNotifications = onExpandNotifications,
+                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )
             }
             LauncherMode.STANDARD -> {
@@ -331,7 +344,8 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
-                    onExpandNotifications = onExpandNotifications
+                    onExpandNotifications = onExpandNotifications,
+                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )
             }
             LauncherMode.HYBRID -> {
@@ -354,7 +368,8 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
-                    onExpandNotifications = onExpandNotifications
+                    onExpandNotifications = onExpandNotifications,
+                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )
             }
         }
@@ -370,7 +385,8 @@ fun MainScreen(
             onAppClick = safeLaunchApp,
             onAppLongClick = { selectedAppForMenu = it },
             onToggleFavorite = { viewModel.toggleFavorite(it) },
-            onDismiss = { viewModel.setDrawerOpen(false) }
+            onDismiss = { viewModel.setDrawerOpen(false) },
+            onOpenSettings = { viewModel.setSettingsOpen(true) }
         )
 
         // Ayarlar İletişim Kutusu
@@ -389,8 +405,106 @@ fun MainScreen(
             onToggleLockApp = { viewModel.toggleLockApp(it) },
             onRestorePreferences = { viewModel.restorePreferences(it) },
             onResetOnboarding = { viewModel.resetOnboarding() },
+            onAddHomeWidgetClick = onAddHomeWidget,
             onDismiss = { viewModel.setSettingsOpen(false) }
         )
+
+        // Ana Ekrana / Duvar Kağıdına Uzun Basınca Açılan Hızlı Menü
+        if (isHomeScreenMenuOpen) {
+            AlertDialog(
+                onDismissRequest = { isHomeScreenMenuOpen = false },
+                title = {
+                    Text(
+                        text = "Posea Launcher",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // 1. Launcher Ayarları
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    isHomeScreenMenuOpen = false
+                                    viewModel.setSettingsOpen(true)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column {
+                                    Text("Launcher Ayarları", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                                    Text("Görünüm, modlar, ikonlar, gizlilik", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                                }
+                            }
+                        }
+
+                        // 2. Widget Ekle
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    isHomeScreenMenuOpen = false
+                                    onAddHomeWidget()
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column {
+                                    Text("Widget Ekle", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                                    Text("Masaüstüne saat, hava durumu vb. ekle", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        // 3. Duvar Kâğıdı
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    isHomeScreenMenuOpen = false
+                                    try {
+                                        val intent = Intent(Intent.ACTION_SET_WALLPAPER)
+                                        context.startActivity(Intent.createChooser(intent, "Duvar Kâğıdı Seç"))
+                                    } catch (_: Exception) {}
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Wallpaper, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column {
+                                    Text("Duvar Kâğıdı", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                                    Text("Sistem duvar kâğıdını değiştir", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { isHomeScreenMenuOpen = false }) {
+                        Text("Kapat")
+                    }
+                }
+            )
+        }
 
         // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Kısayollar, Favori, Gizle, Kilitle, Yeniden Adlandır, Klasöre Ekle, Bilgi)
         selectedAppForMenu?.let { app ->

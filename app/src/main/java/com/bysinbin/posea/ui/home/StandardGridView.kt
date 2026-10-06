@@ -61,81 +61,46 @@ fun StandardGridView(
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
     onExpandNotifications: () -> Unit = {},
+    onHomeScreenLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val nestedScrollConnection = remember(onExpandNotifications) {
-        object : NestedScrollConnection {
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                // En üstteyken aşağı kaydırma bildirim panelini açar, listeyi kasmadan doğal kaydırmayı korur
-                if (available.y > 60f) {
-                    onExpandNotifications()
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp)
     ) {
-        // Dinamik Sütun Sayısı ile Uygulama ve Klasör Izgarası
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1. Sabit Saat & Tarih Başlığı (Liste kayarken asla baştan çizilmez ve takılma yapmaz)
+        ClockHeader(
+            alignment = Alignment.CenterHorizontally,
+            textColor = MaterialTheme.colorScheme.onBackground,
+            onLongClick = onHomeScreenLongClick
+        )
+
+        // 2. Eklenmiş Widget'lar (Yalnızca kullanıcı eklediyse gösterilir)
+        if (pinnedWidgetIds.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            WidgetContainer(
+                widgetIds = pinnedWidgetIds,
+                widgetManager = widgetManager,
+                onAddWidgetClick = onAddWidgetClick,
+                onRemoveWidget = onRemoveWidget
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Dinamik Sütun Sayısı ile Saf Uygulama ve Klasör Izgarası (Tamamen homojen 120 FPS)
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridColumns.coerceIn(3, 6)),
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
-                .nestedScroll(nestedScrollConnection),
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // 1. Saat & Tarih Başlığı (Tüm sütunları kaplar)
-            item(
-                span = { GridItemSpan(maxLineSpan) },
-                key = "header_clock",
-                contentType = "header_clock"
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    ClockHeader(
-                        alignment = Alignment.CenterHorizontally,
-                        textColor = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            }
-
-            // 2. Native Android Widget Alanı (Sadece widget eklenmişse render edilir)
-            if (pinnedWidgetIds.isNotEmpty()) {
-                item(
-                    span = { GridItemSpan(maxLineSpan) },
-                    key = "header_widget",
-                    contentType = "header_widget"
-                ) {
-                    WidgetContainer(
-                        widgetIds = pinnedWidgetIds,
-                        widgetManager = widgetManager,
-                        onAddWidgetClick = onAddWidgetClick,
-                        onRemoveWidget = onRemoveWidget
-                    )
-                }
-            }
-
-            // 3. Boşluk
-            item(
-                span = { GridItemSpan(maxLineSpan) },
-                key = "header_spacer",
-                contentType = "header_spacer"
-            ) {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            // 4. Klasörler / Gruplar
+            // 1. Klasörler / Gruplar
             items(
                 items = folders,
                 key = { "folder_${it.id}" },
