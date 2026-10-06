@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bysinbin.posea.data.AppsRepository
 import com.bysinbin.posea.data.PreferencesRepository
+import com.bysinbin.posea.data.system.LauncherWidgetManager
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.model.LauncherMode
@@ -30,7 +31,8 @@ data class LauncherUiState(
 class LauncherViewModel @JvmOverloads constructor(
     application: Application,
     private val appsRepository: AppsRepository = AppsRepository(application),
-    private val preferencesRepository: PreferencesRepository = PreferencesRepository(application)
+    private val preferencesRepository: PreferencesRepository = PreferencesRepository(application),
+    val widgetManager: LauncherWidgetManager = LauncherWidgetManager(application)
 ) : AndroidViewModel(application) {
 
     private val _searchQuery = MutableStateFlow("")
@@ -124,6 +126,19 @@ class LauncherViewModel @JvmOverloads constructor(
     fun completeOnboarding(mode: LauncherMode, iconStyle: IconStyle, favorites: Set<String>) {
         viewModelScope.launch {
             preferencesRepository.completeOnboarding(mode, iconStyle, favorites)
+        }
+    }
+
+    fun addPinnedWidget(widgetId: Int) {
+        viewModelScope.launch {
+            preferencesRepository.addPinnedWidget(widgetId)
+        }
+    }
+
+    fun removePinnedWidget(widgetId: Int) {
+        viewModelScope.launch {
+            widgetManager.deleteAppWidgetId(widgetId)
+            preferencesRepository.removePinnedWidget(widgetId)
         }
     }
 

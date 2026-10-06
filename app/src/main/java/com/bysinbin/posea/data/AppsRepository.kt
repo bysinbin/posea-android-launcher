@@ -91,23 +91,13 @@ class AppsRepository(
                 } catch (e: Exception) {
                     activity.applicationInfo.packageName
                 }
-                val icon = try {
-                    activity.getBadgedIcon(0)
-                } catch (e: Exception) {
-                    try {
-                        context.packageManager.getApplicationIcon(activity.applicationInfo)
-                    } catch (e2: Exception) {
-                        null
-                    }
-                }
-
                 appList.add(
                     AppModel(
                         label = label,
                         packageName = activity.applicationInfo.packageName,
                         activityName = activity.name,
                         userHandle = profile,
-                        icon = icon
+                        icon = null
                     )
                 )
             }

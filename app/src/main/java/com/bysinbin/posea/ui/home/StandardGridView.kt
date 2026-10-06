@@ -27,17 +27,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.bysinbin.posea.data.system.LauncherWidgetManager
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.ui.components.AppGridItem
 import com.bysinbin.posea.ui.components.AppIcon
 import com.bysinbin.posea.ui.components.ClockHeader
+import com.bysinbin.posea.ui.components.WidgetContainer
 
 @Composable
 fun StandardGridView(
     apps: List<AppModel>,
     dockApps: List<AppModel>,
     iconStyle: IconStyle,
+    pinnedWidgetIds: List<Int>,
+    widgetManager: LauncherWidgetManager,
+    onAddWidgetClick: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
@@ -46,7 +52,7 @@ fun StandardGridView(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 8.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -56,7 +62,15 @@ fun StandardGridView(
             textColor = MaterialTheme.colorScheme.onBackground
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // Native Android Widget Alanı
+        WidgetContainer(
+            widgetIds = pinnedWidgetIds,
+            widgetManager = widgetManager,
+            onAddWidgetClick = onAddWidgetClick,
+            onRemoveWidget = onRemoveWidget
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Uygulama Izgarası (4 Sütun)
         LazyVerticalGrid(
@@ -64,8 +78,8 @@ fun StandardGridView(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(apps, key = { it.packageName }) { app ->
                 AppGridItem(
@@ -84,12 +98,12 @@ fun StandardGridView(
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 16.dp)
+                .padding(horizontal = 8.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceAround
             ) {

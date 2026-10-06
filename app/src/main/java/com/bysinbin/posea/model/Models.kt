@@ -61,8 +61,71 @@ data class UserPreferences(
     val mode: LauncherMode = LauncherMode.HYBRID,
     val iconStyle: IconStyle = IconStyle.COLOR,
     val favoritePackages: Set<String> = emptySet(),
+    val pinnedWidgetIds: List<Int> = emptyList(),
     val isOnboardingCompleted: Boolean = false,
     val showClock: Boolean = true,
     val autoOpenKeyboard: Boolean = false,
     val gridColumns: Int = 4
 )
+
+/**
+ * Kullanıcının istediği favori uygulamaları (YT Music, WhatsApp, Telefon, Chrome, Mesajlar, Instagram)
+ * cihazdaki yüklü uygulamalar arasından otomatik tespit eder.
+ */
+fun detectPreferredFavorites(apps: List<AppModel>): Set<String> {
+    val targetPackages = listOf(
+        "com.google.android.apps.youtube.music",
+        "com.whatsapp",
+        "com.google.android.dialer",
+        "com.android.dialer",
+        "com.android.chrome",
+        "com.google.android.apps.messaging",
+        "com.android.mms",
+        "com.instagram.android"
+    )
+
+    val selected = mutableSetOf<String>()
+
+    // 1. Doğrudan paket adı eşleşmeleri
+    for (target in targetPackages) {
+        if (apps.any { it.packageName == target }) {
+            selected.add(target)
+        }
+    }
+
+    // 2. Paket adı farklıysa kelime bazlı eşleştirme
+    fun findByKeyword(keywords: List<String>): String? {
+        return apps.firstOrNull { app ->
+            val label = app.label.lowercase()
+            val pkg = app.packageName.lowercase()
+            keywords.any { k -> label.contains(k) || pkg.contains(k) }
+        }?.packageName
+    }
+
+    // YT Music
+    if (!selected.any { it.contains("youtube.music") }) {
+        findByKeyword(listOf("youtube music", "yt music", "music"))?.let { selected.add(it) }
+    }
+    // WhatsApp
+    if (!selected.any { it.contains("whatsapp") }) {
+        findByKeyword(listOf("whatsapp"))?.let { selected.add(it) }
+    }
+    // Telefon
+    if (!selected.any { it.contains("dialer") || it.contains("phone") }) {
+        findByKeyword(listOf("telefon", "phone", "dialer"))?.let { selected.add(it) }
+    }
+    // Chrome
+    if (!selected.any { it.contains("chrome") }) {
+        findByKeyword(listOf("chrome", "tarayıcı", "browser"))?.let { selected.add(it) }
+    }
+    // Mesajlar
+    if (!selected.any { it.contains("messaging") || it.contains("mms") }) {
+        findByKeyword(listOf("mesaj", "message", "sms"))?.let { selected.add(it) }
+    }
+    // Instagram
+    if (!selected.any { it.contains("instagram") }) {
+        findByKeyword(listOf("instagram"))?.let { selected.add(it) }
+    }
+
+    return if (selected.isNotEmpty()) selected else apps.take(5).map { it.packageName }.toSet()
+}

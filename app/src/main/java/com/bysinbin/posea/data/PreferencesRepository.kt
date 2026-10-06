@@ -24,6 +24,7 @@ class PreferencesRepository(private val context: Context) {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val FAVORITE_PACKAGES = stringSetPreferencesKey("favorite_packages")
         val SHOW_CLOCK = booleanPreferencesKey("show_clock")
+        val PINNED_WIDGET_IDS = stringPreferencesKey("pinned_widget_ids")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { preferences ->
@@ -32,6 +33,8 @@ class PreferencesRepository(private val context: Context) {
         val isCompleted = preferences[Keys.ONBOARDING_COMPLETED] ?: false
         val favorites = preferences[Keys.FAVORITE_PACKAGES] ?: emptySet()
         val showClock = preferences[Keys.SHOW_CLOCK] ?: true
+        val widgetIdsRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
+        val widgetIds = if (widgetIdsRaw.isBlank()) emptyList() else widgetIdsRaw.split(",").mapNotNull { it.toIntOrNull() }
 
         UserPreferences(
             mode = try {
@@ -46,8 +49,29 @@ class PreferencesRepository(private val context: Context) {
             },
             isOnboardingCompleted = isCompleted,
             favoritePackages = favorites,
+            pinnedWidgetIds = widgetIds,
             showClock = showClock
         )
+    }
+
+    suspend fun addPinnedWidget(widgetId: Int) {
+        context.dataStore.edit { preferences ->
+            val currentRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
+            val list = if (currentRaw.isBlank()) mutableListOf() else currentRaw.split(",").mapNotNull { it.toIntOrNull() }.toMutableList()
+            if (!list.contains(widgetId)) {
+                list.add(widgetId)
+                preferences[Keys.PINNED_WIDGET_IDS] = list.joinToString(",")
+            }
+        }
+    }
+
+    suspend fun removePinnedWidget(widgetId: Int) {
+        context.dataStore.edit { preferences ->
+            val currentRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
+            val list = if (currentRaw.isBlank()) mutableListOf() else currentRaw.split(",").mapNotNull { it.toIntOrNull() }.toMutableList()
+            list.remove(widgetId)
+            preferences[Keys.PINNED_WIDGET_IDS] = list.joinToString(",")
+        }
     }
 
     suspend fun setLauncherMode(mode: LauncherMode) {

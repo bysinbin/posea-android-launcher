@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import com.bysinbin.posea.model.AppModel
 import com.bysinbin.posea.model.IconStyle
 import com.bysinbin.posea.model.LauncherMode
+import com.bysinbin.posea.model.detectPreferredFavorites
 import com.bysinbin.posea.ui.components.AppIcon
 
 @Composable
@@ -73,9 +74,11 @@ fun OnboardingScreen(
     var step by remember { mutableIntStateOf(0) }
     var selectedMode by remember { mutableStateOf(LauncherMode.HYBRID) }
     var selectedIconStyle by remember { mutableStateOf(IconStyle.COLOR) }
-    var selectedFavorites by remember {
-        // İlk 5 uygulamayı varsayılan favori olarak seç
-        mutableStateOf(availableApps.take(5).map { it.packageName }.toSet())
+    val preferredFavorites: Set<String> = remember(availableApps) {
+        detectPreferredFavorites(availableApps)
+    }
+    var selectedFavorites by remember(preferredFavorites) {
+        mutableStateOf(preferredFavorites)
     }
 
     Surface(

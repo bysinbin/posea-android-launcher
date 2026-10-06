@@ -1,7 +1,11 @@
 package com.bysinbin.posea.ui.main
 
+import android.app.Activity
+import android.appwidget.AppWidgetManager
+import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -12,13 +16,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bysinbin.posea.model.AppModel
@@ -37,6 +45,72 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedAppForMenu by remember { mutableStateOf<AppModel?>(null) }
+    var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Widget dinleyicisini yaşam döngüsüne bağla
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                viewModel.widgetManager.startListening()
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                viewModel.widgetManager.stopListening()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.widgetManager.stopListening()
+        }
+    }
+
+    // Widget Ayarlama Launcher'ı
+    val configureWidgetLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val id = pendingWidgetId
+        if (result.resultCode == Activity.RESULT_OK && id != null) {
+            viewModel.addPinnedWidget(id)
+        } else if (id != null) {
+            viewModel.widgetManager.deleteAppWidgetId(id)
+        }
+        pendingWidgetId = null
+    }
+
+    // Widget Seçici (Picker) Launcher'ı
+    val pickWidgetLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val id = pendingWidgetId
+        if (result.resultCode == Activity.RESULT_OK && id != null) {
+            val info = viewModel.widgetManager.getAppWidgetInfo(id)
+            if (info != null) {
+                if (info.configure != null) {
+                    val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                        component = info.configure
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                    }
+                    configureWidgetLauncher.launch(configIntent)
+                } else {
+                    viewModel.addPinnedWidget(id)
+                    pendingWidgetId = null
+                }
+            }
+        } else if (id != null) {
+            viewModel.widgetManager.deleteAppWidgetId(id)
+            pendingWidgetId = null
+        }
+    }
+
+    val onAddWidget: () -> Unit = {
+        val newId = viewModel.widgetManager.allocateAppWidgetId()
+        pendingWidgetId = newId
+        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+        }
+        pickWidgetLauncher.launch(pickIntent)
+    }
 
     // Geri tuşu kontrolü (Çekmece veya ayarlar açıksa kapat)
     BackHandler(enabled = uiState.isDrawerOpen || uiState.isSettingsOpen || selectedAppForMenu != null) {
@@ -95,6 +169,10 @@ fun MainScreen(
                     apps = uiState.allApps,
                     dockApps = uiState.favoriteApps,
                     iconStyle = uiState.preferences.iconStyle,
+                    pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
+                    widgetManager = viewModel.widgetManager,
+                    onAddWidgetClick = onAddWidget,
+                    onRemoveWidget = { viewModel.removePinnedWidget(it) },
                     onAppClick = { viewModel.launchApp(it) },
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
@@ -105,6 +183,10 @@ fun MainScreen(
                     favoriteApps = uiState.favoriteApps,
                     allApps = uiState.allApps,
                     iconStyle = uiState.preferences.iconStyle,
+                    pinnedWidgetIds = uiState.preferences.pinnedWidgetIds,
+                    widgetManager = viewModel.widgetManager,
+                    onAddWidgetClick = onAddWidget,
+                    onRemoveWidget = { viewModel.removePinnedWidget(it) },
                     onAppClick = { viewModel.launchApp(it) },
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
