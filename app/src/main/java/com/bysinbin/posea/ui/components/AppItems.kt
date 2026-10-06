@@ -2,6 +2,7 @@ package com.bysinbin.posea.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,14 +115,17 @@ fun AppGridItem(
 ) {
     val click = remember(app, onAppClick) { { onAppClick(app) } }
     val longClick = remember(app, onAppLongClick) { { onAppLongClick(app) } }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Column(
         modifier = modifier
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
                 onClick = click,
                 onLongClick = longClick
             )
-            .padding(vertical = 10.dp, horizontal = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

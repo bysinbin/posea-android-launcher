@@ -30,7 +30,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-import android.app.AlarmManager
 import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.compose.foundation.background
@@ -40,7 +39,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material3.Icon
@@ -76,9 +74,8 @@ fun ClockHeader(
     val formattedTime = timeFormatter.format(currentTime)
     val formattedDate = dateFormatter.format(currentTime)
 
-    // Pil ve Alarm durumu (Arka planda IPC çağrısı yaparak ana iş parçacığında takılmayı önler)
+    // Pil durumu
     var batteryInfo by remember { mutableStateOf<Pair<Int?, Boolean>>(Pair(null, false)) }
-    var nextAlarmTime by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentTime) {
         val bat = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -94,27 +91,7 @@ fun ClockHeader(
                 Pair(null, false)
             }
         }
-        val alarm = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-                val nextAlarm = alarmManager?.nextAlarmClock
-                val showIntent = nextAlarm?.showIntent
-                val creator = showIntent?.creatorPackage
-                val isRealUserAlarm = showIntent != null && (
-                    creator?.contains("clock", ignoreCase = true) == true ||
-                    creator?.contains("alarm", ignoreCase = true) == true
-                )
-                if (isRealUserAlarm && nextAlarm.triggerTime > System.currentTimeMillis()) {
-                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(nextAlarm.triggerTime))
-                } else {
-                    null
-                }
-            } catch (_: Exception) {
-                null
-            }
-        }
         batteryInfo = bat
-        nextAlarmTime = alarm
     }
 
     Column(
@@ -186,32 +163,6 @@ fun ClockHeader(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "%$pct",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = textColor.copy(alpha = 0.85f)
-                    )
-                }
-            }
-
-            // Alarm Çipi
-            nextAlarmTime?.let { alarm ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .clickable { openClockApp(context) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Alarm,
-                        contentDescription = "Alarm",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = alarm,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = textColor.copy(alpha = 0.85f)

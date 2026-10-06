@@ -47,15 +47,15 @@ import kotlinx.coroutines.withContext
  * İkonlar doğrudan ImageBitmap olarak saklanır, kaydırma sırasında dönüşüm maliyetini sıfıra indirir.
  */
 object IconCacheManager {
-    val imageBitmapCache = LruCache<String, ImageBitmap>(400)
+    val imageBitmapCache = java.util.concurrent.ConcurrentHashMap<String, ImageBitmap>()
     private val monochromeFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
     var activeIconPack: String? = null
 
     fun clearCache() {
-        imageBitmapCache.evictAll()
+        imageBitmapCache.clear()
     }
 
-    fun get(packageName: String): ImageBitmap? = imageBitmapCache.get(packageName)
+    fun get(packageName: String): ImageBitmap? = imageBitmapCache[packageName]
 
     fun getMonochromeFilter(): ColorFilter = monochromeFilter
 
@@ -113,17 +113,24 @@ fun AppIcon(
     size: Dp = 48.dp,
     badgeCount: Int = 0
 ) {
-    Box(
-        modifier = modifier.size(size),
-        contentAlignment = Alignment.Center
-    ) {
+    if (badgeCount <= 0) {
         AppIconContent(
             app = app,
             iconStyle = iconStyle,
-            size = size
+            size = size,
+            modifier = modifier
         )
+    } else {
+        Box(
+            modifier = modifier.size(size),
+            contentAlignment = Alignment.Center
+        ) {
+            AppIconContent(
+                app = app,
+                iconStyle = iconStyle,
+                size = size
+            )
 
-        if (badgeCount > 0) {
             val badgeSize = if (badgeCount > 9) 16.dp else 12.dp
             Box(
                 modifier = Modifier
@@ -152,12 +159,13 @@ fun AppIcon(
 private fun AppIconContent(
     app: AppModel,
     iconStyle: IconStyle,
-    size: Dp
+    size: Dp,
+    modifier: Modifier = Modifier
 ) {
     if (iconStyle == IconStyle.TEXT_ONLY) {
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
@@ -178,9 +186,9 @@ private fun AppIconContent(
         // HIZLI YOL: Sıfır coroutine, sıfır state, anında doğrudan çizim
         Image(
             bitmap = cachedBmp,
-            contentDescription = app.label,
+            contentDescription = null,
             colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
-            modifier = Modifier.size(size)
+            modifier = modifier.size(size)
         )
         return
     }
@@ -201,14 +209,14 @@ private fun AppIconContent(
     if (currentBmp != null) {
         Image(
             bitmap = currentBmp,
-            contentDescription = app.label,
+            contentDescription = null,
             colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
-            modifier = Modifier.size(size)
+            modifier = modifier.size(size)
         )
     } else {
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),

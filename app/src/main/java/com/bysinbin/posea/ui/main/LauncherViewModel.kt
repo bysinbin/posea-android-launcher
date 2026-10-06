@@ -53,6 +53,13 @@ class LauncherViewModel @JvmOverloads constructor(
         }
     }
 
+    val preferencesFlow: StateFlow<UserPreferences> = preferencesRepository.userPreferencesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = UserPreferences()
+        )
+
     val uiState: StateFlow<LauncherUiState> = combine(
         appsRepository.installedAppsFlow,
         preferencesRepository.userPreferencesFlow,

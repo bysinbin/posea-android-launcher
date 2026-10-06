@@ -14,6 +14,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +44,7 @@ fun HybridView(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onExpandNotifications: () -> Unit = {},
     onHomeScreenLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -69,6 +71,7 @@ fun HybridView(
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
+                    onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
                     onHomeScreenLongClick = onHomeScreenLongClick
                 )
@@ -88,6 +91,7 @@ fun HybridView(
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
+                    onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
                     onHomeScreenLongClick = onHomeScreenLongClick
                 )

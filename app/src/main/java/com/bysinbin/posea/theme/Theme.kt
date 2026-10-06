@@ -37,24 +37,24 @@ fun PoseaLauncherTheme(
   amoledBlack: Boolean = false,
   content: @Composable () -> Unit,
 ) {
-  val baseColorScheme =
-    when {
+  val context = LocalContext.current
+  val colorScheme = androidx.compose.runtime.remember(dynamicColor, darkTheme, amoledBlack, context) {
+    val base = when {
       dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
         if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
       }
       darkTheme -> DarkColorScheme
       else -> LightColorScheme
     }
-
-  val colorScheme = if (amoledBlack) {
-    baseColorScheme.copy(
-      background = Color.Black,
-      surface = Color.Black,
-      surfaceVariant = Color(0xFF141414)
-    )
-  } else {
-    baseColorScheme
+    if (amoledBlack) {
+      base.copy(
+        background = Color.Black,
+        surface = Color.Black,
+        surfaceVariant = Color(0xFF141414)
+      )
+    } else {
+      base
+    }
   }
 
   MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)

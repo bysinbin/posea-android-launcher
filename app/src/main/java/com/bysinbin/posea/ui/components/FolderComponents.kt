@@ -68,8 +68,8 @@ fun FolderGridItem(
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val folderApps = remember(folder.packageNames, allApps) {
-        val appMap = allApps.associateBy { it.packageName }
-        folder.packageNames.mapNotNull { appMap[it] }.take(4)
+        val targetPackages = folder.packageNames.take(4)
+        targetPackages.mapNotNull { pkg -> allApps.find { it.packageName == pkg } }
     }
 
     Column(

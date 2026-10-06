@@ -52,6 +52,8 @@ fun WidgetContainer(
 ) {
     var widgetToRemove by remember { mutableStateOf<Int?>(null) }
 
+    if (widgetIds.isEmpty()) return
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -148,40 +150,6 @@ fun WidgetContainer(
                             contentDescription = "Widget'ı Kaldır",
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            // Yeni widget ekleme küçük butonu
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onAddWidgetClick() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Başka Widget Ekle",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

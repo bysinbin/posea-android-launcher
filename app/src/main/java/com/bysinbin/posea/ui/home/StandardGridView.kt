@@ -60,39 +60,21 @@ fun StandardGridView(
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onExpandNotifications: () -> Unit = {},
     onHomeScreenLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 1. Sabit Saat & Tarih Başlığı (Liste kayarken asla baştan çizilmez ve takılma yapmaz)
-        ClockHeader(
-            alignment = Alignment.CenterHorizontally,
-            textColor = MaterialTheme.colorScheme.onBackground,
-            onLongClick = onHomeScreenLongClick
-        )
-
-        // 2. Eklenmiş Widget'lar (Yalnızca kullanıcı eklediyse gösterilir)
-        if (pinnedWidgetIds.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            WidgetContainer(
-                widgetIds = pinnedWidgetIds,
-                widgetManager = widgetManager,
-                onAddWidgetClick = onAddWidgetClick,
-                onRemoveWidget = onRemoveWidget
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         // Dinamik Sütun Sayısı ile Saf Uygulama ve Klasör Izgarası (Tamamen homojen 120 FPS)
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(gridColumns.coerceIn(3, 6)),
             modifier = Modifier
                 .weight(1f)
@@ -100,6 +82,34 @@ fun StandardGridView(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // 0. Saat & Tarih & İsteğe Bağlı Widget Başlığı
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                contentType = "clock_header"
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ClockHeader(
+                        alignment = Alignment.CenterHorizontally,
+                        textColor = MaterialTheme.colorScheme.onBackground,
+                        onLongClick = onHomeScreenLongClick
+                    )
+                    if (pinnedWidgetIds.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WidgetContainer(
+                            widgetIds = pinnedWidgetIds,
+                            widgetManager = widgetManager,
+                            onAddWidgetClick = onAddWidgetClick,
+                            onRemoveWidget = onRemoveWidget
+                        )
+                    }
+                }
+            }
+
             // 1. Klasörler / Gruplar
             items(
                 items = folders,
@@ -116,11 +126,11 @@ fun StandardGridView(
                 )
             }
 
-            // 5. Uygulama İkonları Izgarası (Seçilen sütun sayısı, 100% Atlanabilir / Skippable)
+            // 2. Uygulama İkonları Izgarası (Seçilen sütun sayısı, 100% Atlanabilir / Skippable)
             items(
                 items = apps,
-                key = { "${it.packageName}/${it.activityName}" },
-                contentType = { "app_grid_item" }
+                key = { it.packageName },
+                contentType = { 1 }
             ) { app ->
                 AppGridItem(
                     app = app,

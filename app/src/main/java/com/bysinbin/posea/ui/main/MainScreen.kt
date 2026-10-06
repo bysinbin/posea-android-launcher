@@ -253,30 +253,12 @@ fun MainScreen(
         return
     }
 
-    // Ana Launcher Ekranı (Çift Dokunma ile Ekran Kilitleme)
+    // Ana Launcher Ekranı
     Box(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        if (!PoseaAccessibilityService.lockScreen()) {
-                            Toast.makeText(context, "Ekranı kilitlemek için Erişilebilirlik iznini açın", Toast.LENGTH_SHORT).show()
-                            try {
-                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            } catch (_: Exception) {}
-                        }
-                    },
-                    onLongPress = {
-                        isHomeScreenMenuOpen = true
-                    }
-                )
-            }
     ) {
         val safeLaunchApp: (AppModel) -> Unit = remember(uiState.preferences.lockedPackages, context) {
             { app ->
@@ -307,6 +289,7 @@ fun MainScreen(
         val onOpenDrawer: () -> Unit = remember { { viewModel.setDrawerOpen(true) } }
         val onRemovePinnedWidget: (Int) -> Unit = remember { { viewModel.removePinnedWidget(it) } }
         val onRemoveHomeWidget: (Int) -> Unit = remember { { viewModel.removeHomeWidget(it) } }
+        val onOpenSettings: () -> Unit = remember { { viewModel.setSettingsOpen(true) } }
         val onExpandNotifications: () -> Unit = remember(context) { { expandNotificationPanel(context) } }
 
         // Kullanıcı tercihine göre seçilen mod görünümü
@@ -323,6 +306,7 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
+                    onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
                     onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )
@@ -344,6 +328,7 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
+                    onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
                     onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )
@@ -368,6 +353,7 @@ fun MainScreen(
                     onAppClick = safeLaunchApp,
                     onAppLongClick = onAppLongClick,
                     onOpenDrawer = onOpenDrawer,
+                    onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
                     onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
                 )

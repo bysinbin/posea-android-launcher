@@ -25,18 +25,18 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val preferences by viewModel.preferencesFlow.collectAsStateWithLifecycle()
 
             // İkon paketi senkronizasyonu
-            IconCacheManager.activeIconPack = uiState.preferences.selectedIconPackPackage
+            IconCacheManager.activeIconPack = preferences.selectedIconPackPackage
 
             PoseaLauncherTheme(
-                dynamicColor = uiState.preferences.isDynamicTheme,
-                amoledBlack = uiState.preferences.isAmoledBlack
+                dynamicColor = preferences.isDynamicTheme,
+                amoledBlack = preferences.isAmoledBlack
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = if (uiState.preferences.isAmoledBlack) Color.Black else Color.Transparent
+                    color = if (preferences.isAmoledBlack) Color.Black else Color.Transparent
                 ) {
                     MainScreen(viewModel = viewModel)
                 }
