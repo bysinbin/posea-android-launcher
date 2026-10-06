@@ -38,6 +38,7 @@ import com.bysinbin.posea.ui.home.StandardGridView
 import com.bysinbin.posea.ui.onboarding.OnboardingScreen
 import com.bysinbin.posea.ui.settings.SettingsDialog
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,18 +48,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import com.bysinbin.posea.data.system.AppShortcutsManager
+import com.bysinbin.posea.data.system.BiometricHelper
 import com.bysinbin.posea.model.AppFolder
 import com.bysinbin.posea.ui.components.FolderDetailDialog
 import android.provider.Settings
@@ -271,6 +279,29 @@ fun MainScreen(
                 )
             }
     ) {
+        val safeLaunchApp: (AppModel) -> Unit = remember(uiState.preferences.lockedPackages, context) {
+            { app ->
+                if (uiState.preferences.lockedPackages.contains(app.packageName)) {
+                    val activity = context as? Activity
+                    if (activity != null && BiometricHelper.isDeviceSecure(activity)) {
+                        BiometricHelper.authenticate(
+                            activity = activity,
+                            title = app.label,
+                            subtitle = "Uygulamayı açmak için doğrulayın",
+                            onSuccess = { viewModel.launchApp(app) },
+                            onError = { msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    } else {
+                        viewModel.launchApp(app)
+                    }
+                } else {
+                    viewModel.launchApp(app)
+                }
+            }
+        }
+
         // Kullanıcı tercihine göre seçilen mod görünümü
         when (uiState.preferences.mode) {
             LauncherMode.MINIMALIST -> {
@@ -281,7 +312,7 @@ fun MainScreen(
                     widgetManager = viewModel.widgetManager,
                     onAddWidgetClick = onAddHomeWidget,
                     onRemoveWidget = { viewModel.removeHomeWidget(it) },
-                    onAppClick = { viewModel.launchApp(it) },
+                    onAppClick = safeLaunchApp,
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
                 )
@@ -299,7 +330,7 @@ fun MainScreen(
                     onRemoveWidget = { viewModel.removePinnedWidget(it) },
                     onFolderClick = { activeFolder = it },
                     onFolderLongClick = { activeFolder = it },
-                    onAppClick = { viewModel.launchApp(it) },
+                    onAppClick = safeLaunchApp,
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
                 )
@@ -320,7 +351,7 @@ fun MainScreen(
                     onRemovePinnedWidget = { viewModel.removePinnedWidget(it) },
                     onFolderClick = { activeFolder = it },
                     onFolderLongClick = { activeFolder = it },
-                    onAppClick = { viewModel.launchApp(it) },
+                    onAppClick = safeLaunchApp,
                     onAppLongClick = { selectedAppForMenu = it },
                     onOpenDrawer = { viewModel.setDrawerOpen(true) }
                 )
@@ -335,7 +366,7 @@ fun MainScreen(
             recentApps = uiState.recentApps,
             iconStyle = uiState.preferences.iconStyle,
             onQueryChange = { viewModel.onSearchQueryChange(it) },
-            onAppClick = { viewModel.launchApp(it) },
+            onAppClick = safeLaunchApp,
             onAppLongClick = { selectedAppForMenu = it },
             onToggleFavorite = { viewModel.toggleFavorite(it) },
             onDismiss = { viewModel.setDrawerOpen(false) }
@@ -353,12 +384,18 @@ fun MainScreen(
             onAmoledBlackChange = { viewModel.setAmoledBlack(it) },
             onDynamicThemeChange = { viewModel.setDynamicTheme(it) },
             onIconPackChange = { viewModel.setIconPackPackage(it) },
+            onShowNotificationBadgesChange = { viewModel.setShowNotificationBadges(it) },
+            onToggleLockApp = { viewModel.toggleLockApp(it) },
+            onRestorePreferences = { viewModel.restorePreferences(it) },
             onResetOnboarding = { viewModel.resetOnboarding() },
             onDismiss = { viewModel.setSettingsOpen(false) }
         )
 
-        // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Favori, Gizle, Yeniden Adlandır, Klasöre Ekle, Bilgi)
+        // Uygulamaya Uzun Basınca Açılan Kapsamlı Hızlı Menü (Kısayollar, Favori, Gizle, Kilitle, Yeniden Adlandır, Klasöre Ekle, Bilgi)
         selectedAppForMenu?.let { app ->
+            val shortcuts = remember(app.packageName) { AppShortcutsManager.getShortcuts(context, app.packageName) }
+            val isLocked = uiState.preferences.lockedPackages.contains(app.packageName)
+
             AlertDialog(
                 onDismissRequest = { selectedAppForMenu = null },
                 title = { Text(app.label) },
@@ -366,6 +403,53 @@ fun MainScreen(
                     androidx.compose.foundation.layout.Column(
                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
                     ) {
+                        // Uygulama Kısayolları (WhatsApp Sohbetleri, Chrome Sekmeleri vb.)
+                        if (shortcuts.isNotEmpty()) {
+                            Text(
+                                text = "Kısayollar",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                            )
+                            shortcuts.forEach { shortcut ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            AppShortcutsManager.launchShortcut(context, shortcut)
+                                            selectedAppForMenu = null
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (shortcut.iconBitmap != null) {
+                                            Image(
+                                                bitmap = shortcut.iconBitmap,
+                                                contentDescription = shortcut.label,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = shortcut.label,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = DividerDefaults.color.copy(alpha = 0.3f)
+                            )
+                        }
+
                         // 1. Favorilere Ekle / Kaldır
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -387,7 +471,32 @@ fun MainScreen(
                             }
                         }
 
-                        // 2. Yeniden Adlandır
+                        // 2. Uygulama Kilidi (Biyometrik Kasa)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.toggleLockApp(app.packageName)
+                                    selectedAppForMenu = null
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = if (isLocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(if (isLocked) "Uygulama Kilidini Kaldır" else "Uygulamayı Kilitle (Kasa)")
+                            }
+                        }
+
+                        // 3. Yeniden Adlandır
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -409,7 +518,7 @@ fun MainScreen(
                             }
                         }
 
-                        // 3. Uygulamayı Gizle
+                        // 4. Uygulamayı Gizle
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -430,7 +539,7 @@ fun MainScreen(
                             }
                         }
 
-                        // 4. Klasöre Ekle
+                        // 5. Klasöre Ekle
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -451,7 +560,7 @@ fun MainScreen(
                             }
                         }
 
-                        // 5. Uygulama Bilgisi
+                        // 6. Uygulama Bilgisi
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -626,7 +735,7 @@ fun MainScreen(
                 folder = currentFolder,
                 allApps = uiState.allApps,
                 iconStyle = uiState.preferences.iconStyle,
-                onAppClick = { viewModel.launchApp(it) },
+                onAppClick = safeLaunchApp,
                 onRenameFolder = { viewModel.renameFolder(currentFolder.id, it) },
                 onDeleteFolder = {
                     viewModel.deleteFolder(currentFolder.id)

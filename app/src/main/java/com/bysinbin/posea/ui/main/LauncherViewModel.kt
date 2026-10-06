@@ -263,4 +263,28 @@ class LauncherViewModel @JvmOverloads constructor(
             preferencesRepository.resetOnboarding()
         }
     }
+
+    fun setShowNotificationBadges(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setShowNotificationBadges(enabled)
+        }
+    }
+
+    fun toggleLockApp(packageName: String) {
+        viewModelScope.launch {
+            preferencesRepository.toggleLockApp(packageName)
+        }
+    }
+
+    fun setLockedPackages(packages: Set<String>) {
+        viewModelScope.launch {
+            preferencesRepository.setLockedPackages(packages)
+        }
+    }
+
+    fun restorePreferences(newPrefs: UserPreferences) {
+        viewModelScope.launch {
+            preferencesRepository.restorePreferences(newPrefs)
+        }
+    }
 }

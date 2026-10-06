@@ -90,7 +90,9 @@ data class UserPreferences(
     val recentAppPackages: List<String> = emptyList(),
     val isAmoledBlack: Boolean = false,
     val isDynamicTheme: Boolean = true,
-    val selectedIconPackPackage: String? = null
+    val selectedIconPackPackage: String? = null,
+    val showNotificationBadges: Boolean = true,
+    val lockedPackages: Set<String> = emptySet()
 )
 
 /**

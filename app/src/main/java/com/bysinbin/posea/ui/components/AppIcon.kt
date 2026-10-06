@@ -8,10 +8,13 @@ import android.graphics.drawable.Drawable
 import androidx.collection.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bysinbin.posea.data.system.PoseaNotificationService
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -107,12 +110,57 @@ fun AppIcon(
     app: AppModel,
     iconStyle: IconStyle,
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp
+    size: Dp = 48.dp,
+    showBadge: Boolean = true
+) {
+    val badgeCounts by PoseaNotificationService.badgeCounts.collectAsStateWithLifecycle()
+    val badgeCount = if (showBadge) badgeCounts[app.packageName] ?: 0 else 0
+
+    Box(
+        modifier = modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        AppIconContent(
+            app = app,
+            iconStyle = iconStyle,
+            size = size
+        )
+
+        if (badgeCount > 0) {
+            val badgeSize = if (badgeCount > 9) 16.dp else 12.dp
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(badgeSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.error)
+                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (badgeCount > 1) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        color = MaterialTheme.colorScheme.onError,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 8.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppIconContent(
+    app: AppModel,
+    iconStyle: IconStyle,
+    size: Dp
 ) {
     if (iconStyle == IconStyle.TEXT_ONLY) {
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
@@ -135,7 +183,7 @@ fun AppIcon(
             bitmap = cachedBmp,
             contentDescription = app.label,
             colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
-            modifier = modifier.size(size)
+            modifier = Modifier.size(size)
         )
         return
     }
@@ -158,12 +206,12 @@ fun AppIcon(
             bitmap = currentBmp,
             contentDescription = app.label,
             colorFilter = if (iconStyle == IconStyle.MONOCHROME) IconCacheManager.getMonochromeFilter() else null,
-            modifier = modifier.size(size)
+            modifier = Modifier.size(size)
         )
     } else {
         val initialLetter = app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
@@ -178,3 +226,4 @@ fun AppIcon(
         }
     }
 }
+

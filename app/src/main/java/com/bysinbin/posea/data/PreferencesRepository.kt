@@ -39,6 +39,8 @@ class PreferencesRepository(private val context: Context) {
         val AMOLED_BLACK = booleanPreferencesKey("amoled_black")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
+        val NOTIFICATION_BADGES = booleanPreferencesKey("notification_badges")
+        val LOCKED_PACKAGES = stringSetPreferencesKey("locked_packages")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { preferences ->
@@ -47,11 +49,13 @@ class PreferencesRepository(private val context: Context) {
         val isCompleted = preferences[Keys.ONBOARDING_COMPLETED] ?: false
         val favorites = preferences[Keys.FAVORITE_PACKAGES] ?: emptySet()
         val hidden = preferences[Keys.HIDDEN_PACKAGES] ?: emptySet()
+        val locked = preferences[Keys.LOCKED_PACKAGES] ?: emptySet()
         val showClock = preferences[Keys.SHOW_CLOCK] ?: true
         val gridCols = preferences[Keys.GRID_COLUMNS] ?: 4
         val isAmoled = preferences[Keys.AMOLED_BLACK] ?: false
         val isDynamic = preferences[Keys.DYNAMIC_THEME] ?: true
         val iconPack = preferences[Keys.ICON_PACK_PACKAGE]
+        val showBadges = preferences[Keys.NOTIFICATION_BADGES] ?: true
 
         val widgetIdsRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
         val widgetIds = if (widgetIdsRaw.isBlank()) emptyList() else widgetIdsRaw.split(",").mapNotNull { it.toIntOrNull() }
@@ -82,6 +86,7 @@ class PreferencesRepository(private val context: Context) {
             isOnboardingCompleted = isCompleted,
             favoritePackages = favorites,
             hiddenPackages = hidden,
+            lockedPackages = locked,
             folders = folders,
             pinnedWidgetIds = widgetIds,
             homeWidgetIds = homeWidgetIds,
@@ -91,7 +96,8 @@ class PreferencesRepository(private val context: Context) {
             recentAppPackages = recentPackages,
             isAmoledBlack = isAmoled,
             isDynamicTheme = isDynamic,
-            selectedIconPackPackage = iconPack
+            selectedIconPackPackage = iconPack,
+            showNotificationBadges = showBadges
         )
     }
 
@@ -309,6 +315,52 @@ class PreferencesRepository(private val context: Context) {
     suspend fun resetOnboarding() {
         context.dataStore.edit { preferences ->
             preferences[Keys.ONBOARDING_COMPLETED] = false
+        }
+    }
+
+    suspend fun setShowNotificationBadges(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.NOTIFICATION_BADGES] = enabled
+        }
+    }
+
+    suspend fun toggleLockApp(packageName: String) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[Keys.LOCKED_PACKAGES]?.toMutableSet() ?: mutableSetOf()
+            if (current.contains(packageName)) {
+                current.remove(packageName)
+            } else {
+                current.add(packageName)
+            }
+            preferences[Keys.LOCKED_PACKAGES] = current
+        }
+    }
+
+    suspend fun setLockedPackages(packages: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.LOCKED_PACKAGES] = packages
+        }
+    }
+
+    suspend fun restorePreferences(newPrefs: UserPreferences) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.MODE] = newPrefs.mode.name
+            preferences[Keys.ICON_STYLE] = newPrefs.iconStyle.name
+            preferences[Keys.FAVORITE_PACKAGES] = newPrefs.favoritePackages
+            preferences[Keys.HIDDEN_PACKAGES] = newPrefs.hiddenPackages
+            preferences[Keys.LOCKED_PACKAGES] = newPrefs.lockedPackages
+            preferences[Keys.GRID_COLUMNS] = newPrefs.gridColumns
+            preferences[Keys.AMOLED_BLACK] = newPrefs.isAmoledBlack
+            preferences[Keys.DYNAMIC_THEME] = newPrefs.isDynamicTheme
+            preferences[Keys.NOTIFICATION_BADGES] = newPrefs.showNotificationBadges
+            preferences[Keys.SHOW_CLOCK] = newPrefs.showClock
+            if (newPrefs.selectedIconPackPackage != null) {
+                preferences[Keys.ICON_PACK_PACKAGE] = newPrefs.selectedIconPackPackage
+            } else {
+                preferences.remove(Keys.ICON_PACK_PACKAGE)
+            }
+            preferences[Keys.FOLDERS_JSON] = serializeFolders(newPrefs.folders)
+            preferences[Keys.CUSTOM_NAMES_JSON] = serializeCustomNames(newPrefs.customAppNames)
         }
     }
 

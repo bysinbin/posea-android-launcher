@@ -1,8 +1,11 @@
 package com.bysinbin.posea.ui.settings
 
+import android.app.Activity
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,55 +14,63 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bysinbin.posea.model.IconStyle
-import com.bysinbin.posea.model.LauncherMode
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import com.bysinbin.posea.model.AppModel
-import com.bysinbin.posea.model.UserPreferences
-
-import androidx.compose.material3.Switch
-import com.bysinbin.posea.ui.components.IconPackManager
-
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.runtime.DisposableEffect
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.bysinbin.posea.data.system.BackupManager
+import com.bysinbin.posea.data.system.BiometricHelper
 import com.bysinbin.posea.data.system.LauncherHelper
+import com.bysinbin.posea.data.system.PoseaNotificationService
+import com.bysinbin.posea.model.AppModel
+import com.bysinbin.posea.model.IconStyle
+import com.bysinbin.posea.model.LauncherMode
+import com.bysinbin.posea.model.UserPreferences
+import com.bysinbin.posea.ui.components.IconPackManager
 
 @Composable
 fun SettingsDialog(
@@ -73,6 +84,9 @@ fun SettingsDialog(
     onAmoledBlackChange: (Boolean) -> Unit = {},
     onDynamicThemeChange: (Boolean) -> Unit = {},
     onIconPackChange: (String?) -> Unit = {},
+    onShowNotificationBadgesChange: (Boolean) -> Unit = {},
+    onToggleLockApp: (String) -> Unit = {},
+    onRestorePreferences: (UserPreferences) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -81,12 +95,17 @@ fun SettingsDialog(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isDefaultLauncher by remember { mutableStateOf(LauncherHelper.isDefaultLauncher(context)) }
+    var hasNotificationAccess by remember { mutableStateOf(PoseaNotificationService.isNotificationAccessGranted(context)) }
     var isHiddenAppsOpen by remember { mutableStateOf(false) }
+    var isLockedAppsOpen by remember { mutableStateOf(false) }
+    var isRestoreDialogOpen by remember { mutableStateOf(false) }
+    var restoreInputText by remember { mutableStateOf("") }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isDefaultLauncher = LauncherHelper.isDefaultLauncher(context)
+                hasNotificationAccess = PoseaNotificationService.isNotificationAccessGranted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -103,6 +122,78 @@ fun SettingsDialog(
             iconStyle = preferences.iconStyle,
             onToggleHide = onToggleHideApp,
             onDismiss = { isHiddenAppsOpen = false }
+        )
+    }
+
+    if (isLockedAppsOpen) {
+        LockedAppsDialog(
+            isOpen = true,
+            allApps = allApps,
+            lockedPackages = preferences.lockedPackages,
+            iconStyle = preferences.iconStyle,
+            onToggleLock = onToggleLockApp,
+            onDismiss = { isLockedAppsOpen = false }
+        )
+    }
+
+    if (isRestoreDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { isRestoreDialogOpen = false },
+            title = { Text("Yedeği Geri Yükle") },
+            text = {
+                Column {
+                    Text(
+                        text = "Daha önce dışa aktarılan Posea JSON yedeğini buraya yapıştırın:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = restoreInputText,
+                        onValueChange = { restoreInputText = it },
+                        placeholder = { Text("{ \"version\": 1, ... }") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        maxLines = 8
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = cm.primaryClip
+                            if (clip != null && clip.itemCount > 0) {
+                                val text = clip.getItemAt(0).text?.toString() ?: ""
+                                restoreInputText = text
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Panodan Otomatik Yapıştır")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val parsed = BackupManager.parseFromJson(restoreInputText)
+                    if (parsed != null) {
+                        onRestorePreferences(parsed)
+                        Toast.makeText(context, "Yedek başarıyla yüklendi!", Toast.LENGTH_SHORT).show()
+                        isRestoreDialogOpen = false
+                    } else {
+                        Toast.makeText(context, "Geçersiz yedek JSON verisi!", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Text("Geri Yükle")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isRestoreDialogOpen = false }) {
+                    Text("İptal")
+                }
+            }
         )
     }
 
@@ -296,6 +387,71 @@ fun SettingsDialog(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Bildirim Rozetleri (Noktaları)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShowNotificationBadgesChange(!preferences.showNotificationBadges) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Bildirim Rozetleri (Noktaları)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Uygulama simgeleri üzerinde aktif bildirim noktalarını gösterir.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = preferences.showNotificationBadges,
+                        onCheckedChange = onShowNotificationBadgesChange
+                    )
+                }
+
+                if (preferences.showNotificationBadges && !hasNotificationAccess) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                try {
+                                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    })
+                                } catch (_: Exception) {}
+                            }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Bildirim erişim iznini açmak için dokunun",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = DividerDefaults.color.copy(alpha = 0.5f)
@@ -357,21 +513,101 @@ fun SettingsDialog(
                     color = DividerDefaults.color.copy(alpha = 0.5f)
                 )
 
-                // Gizlenen Uygulamalar Yönetimi
-                OutlinedButton(
-                    onClick = { isHiddenAppsOpen = true },
+                // Güvenlik ve Gizlilik (Gizlenen & Kilitli Uygulamalar)
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        if (preferences.hiddenPackages.isEmpty()) "Uygulamaları Gizle"
-                        else "Gizlenen Uygulamalar (${preferences.hiddenPackages.size})"
-                    )
+                    OutlinedButton(
+                        onClick = { isHiddenAppsOpen = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            if (preferences.hiddenPackages.isEmpty()) "Gizle"
+                            else "Gizli (${preferences.hiddenPackages.size})",
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val activity = context as? Activity
+                            if (activity != null && BiometricHelper.isDeviceSecure(activity)) {
+                                BiometricHelper.authenticate(
+                                    activity = activity,
+                                    title = "Kasa Erişimi",
+                                    subtitle = "Kilitli uygulamaları yönetmek için doğrulayın",
+                                    onSuccess = { isLockedAppsOpen = true },
+                                    onError = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
+                                )
+                            } else {
+                                isLockedAppsOpen = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            if (preferences.lockedPackages.isEmpty()) "Kasa Kilidi"
+                            else "Kilitli (${preferences.lockedPackages.size})",
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Yedekleme ve Geri Yükleme
+                Text(
+                    text = "Yedekleme ve Geri Yükleme",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val json = BackupManager.exportToJson(preferences)
+                            BackupManager.copyToClipboard(context, json)
+                            BackupManager.shareBackup(context, json)
+                            Toast.makeText(context, "Yedek panoya kopyalandı ve paylaşıldı!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Yedek Paylaş", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            restoreInputText = ""
+                            isRestoreDialogOpen = true
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Geri Yükle", fontSize = 12.sp)
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
 
                 // Sistem Varsayılan Launcher Durumu & Seçimi
                 Surface(
