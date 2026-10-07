@@ -74,17 +74,13 @@ object IconCacheManager {
             }
         } ?: return null
 
-        val imageBmp = if (drawable is BitmapDrawable && drawable.bitmap != null && !drawable.bitmap.isRecycled) {
-            drawable.bitmap.asImageBitmap()
-        } else {
-            val width = if (drawable.intrinsicWidth in 1..256) drawable.intrinsicWidth else 120
-            val height = if (drawable.intrinsicHeight in 1..256) drawable.intrinsicHeight else 120
-            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bmp)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-            bmp.asImageBitmap()
-        }
+        val density = context.resources.displayMetrics.density
+        val targetPx = (52 * density).toInt().coerceIn(96, 160)
+        val bmp = Bitmap.createBitmap(targetPx, targetPx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, targetPx, targetPx)
+        drawable.draw(canvas)
+        val imageBmp = bmp.asImageBitmap()
 
         imageBitmapCache.put(packageName, imageBmp)
         return imageBmp

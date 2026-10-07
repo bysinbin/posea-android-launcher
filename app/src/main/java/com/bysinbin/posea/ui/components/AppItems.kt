@@ -115,19 +115,16 @@ fun AppGridItem(
 ) {
     val click = remember(app, onAppClick) { { onAppClick(app) } }
     val longClick = remember(app, onAppLongClick) { { onAppLongClick(app) } }
-    val interactionSource = remember { MutableInteractionSource() }
 
     Column(
         modifier = modifier
             .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
                 onClick = click,
                 onLongClick = longClick
             )
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(vertical = 6.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         AppIcon(
             app = app,
@@ -135,8 +132,6 @@ fun AppGridItem(
             size = 52.dp,
             badgeCount = badgeCount
         )
-
-        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = app.label,

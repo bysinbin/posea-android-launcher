@@ -97,12 +97,6 @@ fun ClockHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
-                onLongClick = onLongClick
-            )
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = alignment,
         verticalArrangement = Arrangement.Center

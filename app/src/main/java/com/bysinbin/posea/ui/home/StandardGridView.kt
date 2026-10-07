@@ -67,9 +67,26 @@ fun StandardGridView(
 ) {
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source == NestedScrollSource.UserInput && available.y > 45f) {
+                    onExpandNotifications()
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(nestedScrollConnection)
             .padding(horizontal = 8.dp)
     ) {
         // Dinamik Sütun Sayısı ile Saf Uygulama ve Klasör Izgarası (Tamamen homojen 120 FPS)

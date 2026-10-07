@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -51,10 +54,19 @@ fun HybridView(
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
 
+    val flingBehavior = PagerDefaults.flingBehavior(
+        state = pagerState,
+        snapAnimationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        )
+    )
+
     Column(modifier = modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
+            flingBehavior = flingBehavior,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
