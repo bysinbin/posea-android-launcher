@@ -53,22 +53,16 @@ fun AppListItem(
         if (onToggleFavorite != null) { { onToggleFavorite(app.packageName) } } else null
     }
 
-    Surface(
-        color = Color.Transparent,
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
             .combinedClickable(
                 onClick = click,
                 onLongClick = longClick
             )
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
             AppIcon(
                 app = app,
                 iconStyle = iconStyle,
@@ -96,7 +90,6 @@ fun AppListItem(
                         tint = if (app.isFavorite) MaterialTheme.colorScheme.primary else textColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(22.dp)
                     )
-                }
             }
         }
     }

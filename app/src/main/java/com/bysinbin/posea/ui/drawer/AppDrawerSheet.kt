@@ -337,7 +337,7 @@ fun AppDrawerSheet(
                 ) {
                     items(
                         items = filteredApps,
-                        key = { "${it.packageName}/${it.activityName}" },
+                        key = { it.packageName },
                         contentType = { "app_list_item" }
                     ) { app ->
                         AppListItem(
