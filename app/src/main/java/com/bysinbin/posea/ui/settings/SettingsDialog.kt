@@ -81,6 +81,8 @@ fun SettingsDialog(
     allApps: List<AppModel>,
     onModeChange: (LauncherMode) -> Unit,
     onIconStyleChange: (IconStyle) -> Unit,
+    onClockStyleChange: (com.bysinbin.posea.model.ClockStyle) -> Unit = {},
+    onHideAppLabelsChange: (Boolean) -> Unit = {},
     onGridColumnsChange: (Int) -> Unit,
     onToggleHideApp: (String) -> Unit,
     onAmoledBlackChange: (Boolean) -> Unit = {},
@@ -257,6 +259,48 @@ fun SettingsDialog(
                     color = DividerDefaults.color.copy(alpha = 0.5f)
                 )
 
+                // Saat Stili (Klasik Dijital / BCD İkili Saat)
+                Text(
+                    text = "Saat Stili",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                com.bysinbin.posea.model.ClockStyle.entries.forEach { style ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onClockStyleChange(style) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = preferences.clockStyle == style,
+                            onClick = { onClockStyleChange(style) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = style.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = style.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
+
                 // Izgara Sütun Sayısı
                 Text(
                     text = "Izgara Düzeni (Sütun Sayısı)",
@@ -388,6 +432,35 @@ fun SettingsDialog(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = DividerDefaults.color.copy(alpha = 0.5f)
                 )
+
+                // Masaüstünde Uygulama İsimlerini Gizle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onHideAppLabelsChange(!preferences.hideAppLabels) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Masaüstü İsimlerini Gizle",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Daha temiz ve minimalist bir masaüstü için uygulama adlarını gizler.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = preferences.hideAppLabels,
+                        onCheckedChange = onHideAppLabelsChange
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // AMOLED Saf Siyah Modu
                 Row(

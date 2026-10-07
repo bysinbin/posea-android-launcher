@@ -104,7 +104,8 @@ fun AppGridItem(
     onAppLongClick: (AppModel) -> Unit,
     modifier: Modifier = Modifier,
     badgeCount: Int = 0,
-    textColor: Color = MaterialTheme.colorScheme.onSurface
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    hideLabel: Boolean = false
 ) {
     val click = remember(app.packageName, onAppClick) { { onAppClick(app) } }
     val longClick = remember(app.packageName, onAppLongClick) { { onAppLongClick(app) } }
@@ -128,14 +129,16 @@ fun AppGridItem(
             badgeCount = badgeCount
         )
 
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Normal,
-            color = textColor,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (!hideLabel) {
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = textColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

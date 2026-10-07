@@ -7,6 +7,7 @@ import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -55,6 +56,7 @@ fun ClockHeader(
     modifier: Modifier = Modifier,
     alignment: Alignment.Horizontal = Alignment.Start,
     textColor: Color = MaterialTheme.colorScheme.onBackground,
+    clockStyle: com.bysinbin.posea.model.ClockStyle = com.bysinbin.posea.model.ClockStyle.DIGITAL,
     onLongClick: (() -> Unit)? = null,
     onSwipeDown: (() -> Unit)? = null
 ) {
@@ -123,20 +125,34 @@ fun ClockHeader(
         horizontalAlignment = alignment,
         verticalArrangement = Arrangement.Center
     ) {
-        // Saat (Tıklanınca Alarm/Saat uygulamasını açar, uzun basınca launcher menüsünü açar)
-        Text(
-            text = formattedTime,
-            fontSize = 58.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = textColor,
-            letterSpacing = (-1.5).sp,
-            modifier = Modifier.combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { openClockApp(context) },
-                onLongClick = onLongClick
+        if (clockStyle == com.bysinbin.posea.model.ClockStyle.BCD) {
+            // BCD (Binary-Coded Decimal) İkili Matris Saati
+            BcdClockMatrix(
+                formattedTime = formattedTime,
+                textColor = textColor,
+                modifier = Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { openClockApp(context) },
+                    onLongClick = onLongClick
+                )
             )
-        )
+        } else {
+            // Klasik Büyük Dijital Saat (Tıklanınca Alarm/Saat uygulamasını açar, uzun basınca launcher menüsünü açar)
+            Text(
+                text = formattedTime,
+                fontSize = 58.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = textColor,
+                letterSpacing = (-1.5).sp,
+                modifier = Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { openClockApp(context) },
+                    onLongClick = onLongClick
+                )
+            )
+        }
 
         // Tarih (Tıklanınca Takvim uygulamasını açar, uzun basınca launcher menüsünü açar)
         Text(
@@ -227,5 +243,172 @@ private fun openCalendarApp(context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try { context.startActivity(intent) } catch (_: Exception) {}
+    }
+}
+
+@Composable
+private fun BcdClockMatrix(
+    formattedTime: String,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val h1 = formattedTime.getOrNull(0)?.digitToIntOrNull() ?: 0
+    val h2 = formattedTime.getOrNull(1)?.digitToIntOrNull() ?: 0
+    val m1 = formattedTime.getOrNull(3)?.digitToIntOrNull() ?: 0
+    val m2 = formattedTime.getOrNull(4)?.digitToIntOrNull() ?: 0
+
+    val weights = listOf(8, 4, 2, 1)
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        // Üst Başlık (BCD İkili Saat Etiketi)
+        Row(
+            modifier = Modifier.padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "BCD BINARY CLOCK",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // İkili Matris Izgarası
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Sol Ağırlık İndeksi (8, 4, 2, 1)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                for (w in weights) {
+                    Box(
+                        modifier = Modifier.size(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = w.toString(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Saat Onlar Basamağı (H1)
+            BcdDigitColumn(digit = h1, weights = weights)
+
+            // Saat Birler Basamağı (H2)
+            BcdDigitColumn(digit = h2, weights = weights)
+
+            // Ayırıcı İki Nokta (:)
+            Column(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
+                )
+            }
+
+            // Dakika Onlar Basamağı (M1)
+            BcdDigitColumn(digit = m1, weights = weights)
+
+            // Dakika Birler Basamağı (M2)
+            BcdDigitColumn(digit = m2, weights = weights)
+        }
+
+        // Alt Desimal Değerler (1  4  :  3  5)
+        Row(
+            modifier = Modifier.padding(top = 10.dp, start = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "$h1",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.width(16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = "$h2",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.width(16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = ":",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor.copy(alpha = 0.5f),
+                modifier = Modifier.width(14.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = "$m1",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.width(16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = "$m2",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.width(16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun BcdDigitColumn(
+    digit: Int,
+    weights: List<Int>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        for (weight in weights) {
+            val isLit = (digit and weight) != 0
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(
+                        if (isLit) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                    )
+            )
+        }
     }
 }

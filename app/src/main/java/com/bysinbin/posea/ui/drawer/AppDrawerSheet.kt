@@ -46,8 +46,11 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +58,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,6 +94,7 @@ fun AppDrawerSheet(
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -422,12 +430,57 @@ fun AppDrawerSheet(
                     }
                 }
 
-                // Sağ Taraf A-Z Hızlı Kaydırma Barı
+                // Sağ Taraf A-Z Hızlı Kaydırma Barı (Haptik geri bildirimli ve sürüklenebilir)
                 if (alphabet.size > 2) {
+                    var lastScrubbedLetter by remember { mutableStateOf<Char?>(null) }
+
                     Column(
                         modifier = Modifier
                             .padding(end = 4.dp)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(rememberScrollState())
+                            .pointerInput(alphabet) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { offset ->
+                                        val totalHeight = size.height
+                                        if (totalHeight > 0 && alphabet.isNotEmpty()) {
+                                            val itemHeight = totalHeight.toFloat() / alphabet.size
+                                            val index = (offset.y / itemHeight).toInt().coerceIn(0, alphabet.lastIndex)
+                                            val letter = alphabet[index]
+                                            if (letter != lastScrubbedLetter) {
+                                                lastScrubbedLetter = letter
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                val targetIdx = filteredApps.indexOfFirst {
+                                                    it.label.startsWith(letter, ignoreCase = true)
+                                                }
+                                                if (targetIdx >= 0) {
+                                                    coroutineScope.launch { listState.scrollToItem(targetIdx) }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onVerticalDrag = { change, _ ->
+                                        change.consume()
+                                        val totalHeight = size.height
+                                        if (totalHeight > 0 && alphabet.isNotEmpty()) {
+                                            val itemHeight = totalHeight.toFloat() / alphabet.size
+                                            val index = (change.position.y / itemHeight).toInt().coerceIn(0, alphabet.lastIndex)
+                                            val letter = alphabet[index]
+                                            if (letter != lastScrubbedLetter) {
+                                                lastScrubbedLetter = letter
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                val targetIdx = filteredApps.indexOfFirst {
+                                                    it.label.startsWith(letter, ignoreCase = true)
+                                                }
+                                                if (targetIdx >= 0) {
+                                                    coroutineScope.launch { listState.scrollToItem(targetIdx) }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = { lastScrubbedLetter = null },
+                                    onDragCancel = { lastScrubbedLetter = null }
+                                )
+                            },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         alphabet.forEach { letter ->
@@ -439,6 +492,7 @@ fun AppDrawerSheet(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         val targetIdx = filteredApps.indexOfFirst {
                                             it.label.startsWith(letter, ignoreCase = true)
                                         }

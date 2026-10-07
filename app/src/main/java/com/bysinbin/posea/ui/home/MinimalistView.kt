@@ -50,6 +50,7 @@ import com.bysinbin.posea.ui.components.WidgetContainer
 fun MinimalistView(
     favoriteApps: List<AppModel>,
     iconStyle: IconStyle,
+    clockStyle: com.bysinbin.posea.model.ClockStyle = com.bysinbin.posea.model.ClockStyle.DIGITAL,
     homeWidgetIds: List<Int> = emptyList(),
     widgetManager: LauncherWidgetManager? = null,
     badgeCounts: Map<String, Int> = emptyMap(),
@@ -115,10 +116,11 @@ fun MinimalistView(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Sade Dijital Saat & Tarih
+        // Saat & Tarih (Dijital veya BCD)
         ClockHeader(
             alignment = Alignment.Start,
             textColor = MaterialTheme.colorScheme.onBackground,
+            clockStyle = clockStyle,
             onLongClick = onHomeScreenLongClick,
             onSwipeDown = onExpandNotifications
         )

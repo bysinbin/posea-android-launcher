@@ -26,6 +26,7 @@ class PreferencesRepository(private val context: Context) {
     private object Keys {
         val MODE = stringPreferencesKey("launcher_mode")
         val ICON_STYLE = stringPreferencesKey("icon_style")
+        val CLOCK_STYLE = stringPreferencesKey("clock_style")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val FAVORITE_PACKAGES = stringSetPreferencesKey("favorite_packages")
         val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages")
@@ -41,11 +42,13 @@ class PreferencesRepository(private val context: Context) {
         val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
         val NOTIFICATION_BADGES = booleanPreferencesKey("notification_badges")
         val LOCKED_PACKAGES = stringSetPreferencesKey("locked_packages")
+        val HIDE_APP_LABELS = booleanPreferencesKey("hide_app_labels")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { preferences ->
         val modeName = preferences[Keys.MODE] ?: LauncherMode.HYBRID.name
         val styleName = preferences[Keys.ICON_STYLE] ?: IconStyle.COLOR.name
+        val clockStyleName = preferences[Keys.CLOCK_STYLE] ?: com.bysinbin.posea.model.ClockStyle.DIGITAL.name
         val isCompleted = preferences[Keys.ONBOARDING_COMPLETED] ?: false
         val favorites = preferences[Keys.FAVORITE_PACKAGES] ?: emptySet()
         val hidden = preferences[Keys.HIDDEN_PACKAGES] ?: emptySet()
@@ -56,6 +59,7 @@ class PreferencesRepository(private val context: Context) {
         val isDynamic = preferences[Keys.DYNAMIC_THEME] ?: true
         val iconPack = preferences[Keys.ICON_PACK_PACKAGE]
         val showBadges = preferences[Keys.NOTIFICATION_BADGES] ?: true
+        val hideLabels = preferences[Keys.HIDE_APP_LABELS] ?: false
 
         val widgetIdsRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
         val widgetIds = if (widgetIdsRaw.isBlank()) emptyList() else widgetIdsRaw.split(",").mapNotNull { it.toIntOrNull() }
@@ -83,6 +87,11 @@ class PreferencesRepository(private val context: Context) {
             } catch (e: Exception) {
                 IconStyle.COLOR
             },
+            clockStyle = try {
+                com.bysinbin.posea.model.ClockStyle.valueOf(clockStyleName)
+            } catch (e: Exception) {
+                com.bysinbin.posea.model.ClockStyle.DIGITAL
+            },
             isOnboardingCompleted = isCompleted,
             favoritePackages = favorites,
             hiddenPackages = hidden,
@@ -97,8 +106,21 @@ class PreferencesRepository(private val context: Context) {
             isAmoledBlack = isAmoled,
             isDynamicTheme = isDynamic,
             selectedIconPackPackage = iconPack,
-            showNotificationBadges = showBadges
+            showNotificationBadges = showBadges,
+            hideAppLabels = hideLabels
         )
+    }
+
+    suspend fun setHideAppLabels(hide: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.HIDE_APP_LABELS] = hide
+        }
+    }
+
+    suspend fun setClockStyle(style: com.bysinbin.posea.model.ClockStyle) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.CLOCK_STYLE] = style.name
+        }
     }
 
     suspend fun setCustomAppName(packageName: String, customName: String) {

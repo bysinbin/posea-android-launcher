@@ -202,6 +202,18 @@ class LauncherViewModel @JvmOverloads constructor(
         }
     }
 
+    fun setClockStyle(style: com.bysinbin.posea.model.ClockStyle) {
+        viewModelScope.launch {
+            preferencesRepository.setClockStyle(style)
+        }
+    }
+
+    fun setHideAppLabels(hide: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setHideAppLabels(hide)
+        }
+    }
+
     fun completeOnboarding(mode: LauncherMode, iconStyle: IconStyle, favorites: Set<String>) {
         viewModelScope.launch {
             preferencesRepository.completeOnboarding(mode, iconStyle, favorites)

@@ -50,6 +50,8 @@ fun StandardGridView(
     folders: List<AppFolder> = emptyList(),
     gridColumns: Int = 4,
     iconStyle: IconStyle,
+    clockStyle: com.bysinbin.posea.model.ClockStyle = com.bysinbin.posea.model.ClockStyle.DIGITAL,
+    hideAppLabels: Boolean = false,
     pinnedWidgetIds: List<Int>,
     widgetManager: LauncherWidgetManager,
     badgeCounts: Map<String, Int> = emptyMap(),
@@ -97,6 +99,7 @@ fun StandardGridView(
                     ClockHeader(
                         alignment = Alignment.CenterHorizontally,
                         textColor = MaterialTheme.colorScheme.onBackground,
+                        clockStyle = clockStyle,
                         onLongClick = onHomeScreenLongClick,
                         onSwipeDown = onExpandNotifications
                     )
@@ -140,7 +143,8 @@ fun StandardGridView(
                     onAppClick = onAppClick,
                     onAppLongClick = onAppLongClick,
                     badgeCount = badgeCounts[app.packageName] ?: 0,
-                    textColor = MaterialTheme.colorScheme.onBackground
+                    textColor = MaterialTheme.colorScheme.onBackground,
+                    hideLabel = hideAppLabels
                 )
             }
         }

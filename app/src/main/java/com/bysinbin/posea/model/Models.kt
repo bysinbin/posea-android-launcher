@@ -71,12 +71,27 @@ data class IconPackInfo(
 )
 
 /**
+ * Saat Görünüm Tercihi
+ */
+enum class ClockStyle(val title: String, val description: String) {
+    DIGITAL(
+        title = "Klasik Dijital",
+        description = "Büyük, okunaklı HH:mm formatında saat."
+    ),
+    BCD(
+        title = "BCD (Binary İkili Saat)",
+        description = "Geek minimalizm: 8-4-2-1 ikili matris nokta saati."
+    )
+}
+
+/**
  * Kullanıcı tercihleri ve Launcher durumu
  */
 @Immutable
 data class UserPreferences(
     val mode: LauncherMode = LauncherMode.HYBRID,
     val iconStyle: IconStyle = IconStyle.COLOR,
+    val clockStyle: ClockStyle = ClockStyle.DIGITAL,
     val favoritePackages: Set<String> = emptySet(),
     val hiddenPackages: Set<String> = emptySet(),
     val folders: List<AppFolder> = emptyList(),
@@ -92,7 +107,8 @@ data class UserPreferences(
     val isDynamicTheme: Boolean = true,
     val selectedIconPackPackage: String? = null,
     val showNotificationBadges: Boolean = true,
-    val lockedPackages: Set<String> = emptySet()
+    val lockedPackages: Set<String> = emptySet(),
+    val hideAppLabels: Boolean = false
 )
 
 /**
