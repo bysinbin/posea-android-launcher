@@ -106,12 +106,14 @@ fun AppGridItem(
     badgeCount: Int = 0,
     textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    val click = remember(app, onAppClick) { { onAppClick(app) } }
-    val longClick = remember(app, onAppLongClick) { { onAppLongClick(app) } }
+    val click = remember(app.packageName, onAppClick) { { onAppClick(app) } }
+    val longClick = remember(app.packageName, onAppLongClick) { { onAppLongClick(app) } }
 
     Column(
         modifier = modifier
             .combinedClickable(
+                interactionSource = null,
+                indication = null,
                 onClick = click,
                 onLongClick = longClick
             )

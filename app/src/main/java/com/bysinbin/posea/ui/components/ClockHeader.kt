@@ -46,6 +46,8 @@ import androidx.compose.ui.draw.clip
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,7 +55,8 @@ fun ClockHeader(
     modifier: Modifier = Modifier,
     alignment: Alignment.Horizontal = Alignment.Start,
     textColor: Color = MaterialTheme.colorScheme.onBackground,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    onSwipeDown: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -94,9 +97,28 @@ fun ClockHeader(
         batteryInfo = bat
     }
 
+    val swipeModifier = if (onSwipeDown != null) {
+        Modifier.pointerInput(onSwipeDown) {
+            var totalDrag = 0f
+            detectVerticalDragGestures(
+                onDragStart = { totalDrag = 0f },
+                onDragEnd = { totalDrag = 0f },
+                onDragCancel = { totalDrag = 0f },
+                onVerticalDrag = { _, dragAmount: Float ->
+                    totalDrag += dragAmount
+                    if (totalDrag > 80f) {
+                        onSwipeDown()
+                        totalDrag = 0f
+                    }
+                }
+            )
+        }
+    } else Modifier
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .then(swipeModifier)
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = alignment,
         verticalArrangement = Arrangement.Center

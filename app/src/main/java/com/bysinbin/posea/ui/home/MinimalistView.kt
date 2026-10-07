@@ -67,18 +67,39 @@ fun MinimalistView(
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
+            private var accumulatedY = 0f
+            private var hasTriggered = false
+
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    accumulatedY = 0f
+                    hasTriggered = false
+                }
+                return Offset.Zero
+            }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
                 if (source == NestedScrollSource.UserInput) {
-                    if (available.y > 35f) {
-                        onExpandNotifications()
-                        return Offset(0f, available.y)
-                    } else if (available.y < -35f) {
-                        onOpenDrawer()
-                        return Offset(0f, available.y)
+                    if (available.y == 0f) {
+                        accumulatedY = 0f
+                        hasTriggered = false
+                        return Offset.Zero
+                    }
+                    accumulatedY += available.y
+                    if (!hasTriggered) {
+                        if (accumulatedY > 150f) {
+                            hasTriggered = true
+                            onExpandNotifications()
+                            return Offset(0f, available.y)
+                        } else if (accumulatedY < -150f) {
+                            hasTriggered = true
+                            onOpenDrawer()
+                            return Offset(0f, available.y)
+                        }
                     }
                 }
                 return Offset.Zero
@@ -98,7 +119,8 @@ fun MinimalistView(
         ClockHeader(
             alignment = Alignment.Start,
             textColor = MaterialTheme.colorScheme.onBackground,
-            onLongClick = onHomeScreenLongClick
+            onLongClick = onHomeScreenLongClick,
+            onSwipeDown = onExpandNotifications
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -126,7 +148,7 @@ fun MinimalistView(
 
             items(
                 items = favoriteApps,
-                key = { "${it.packageName}/${it.activityName}" },
+                key = { it.packageName },
                 contentType = { "fav_app_item" }
             ) { app ->
                 AppListItem(

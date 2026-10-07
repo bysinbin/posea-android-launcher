@@ -51,47 +51,114 @@ object IconCacheManager {
     private val monochromeFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
     var activeIconPack: String? = null
 
-    fun clearCache() {
+    private fun getIconDir(context: Context): java.io.File {
+        val dir = java.io.File(context.cacheDir, "icon_cache")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    fun clearCache(context: Context? = null) {
         imageBitmapCache.clear()
+        if (context != null) {
+            try {
+                getIconDir(context).deleteRecursively()
+            } catch (_: Exception) {}
+        }
     }
 
     fun get(packageName: String): ImageBitmap? = imageBitmapCache[packageName]
 
     fun getMonochromeFilter(): ColorFilter = monochromeFilter
 
-    fun loadAndCache(context: Context, packageName: String): ImageBitmap? {
-        val cached = imageBitmapCache.get(packageName)
+    fun loadAndCache(context: Context, packageName: String): ImageBitmap {
+        val cached = imageBitmapCache[packageName]
         if (cached != null) return cached
 
+        // 1. Disk önbelleğini kontrol et (Eğer özel ikon paketi aktif değilse)
+        val iconFile = if (activeIconPack == null) {
+            java.io.File(getIconDir(context), "${packageName}.png")
+        } else null
+
+        if (iconFile != null && iconFile.exists() && iconFile.length() > 0) {
+            try {
+                val diskBmp = android.graphics.BitmapFactory.decodeFile(iconFile.absolutePath)
+                if (diskBmp != null) {
+                    val imageBmp = diskBmp.asImageBitmap()
+                    imageBitmapCache[packageName] = imageBmp
+                    return imageBmp
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Sistemden veya İkon Paketinden İkonu Çek
         val drawable = if (activeIconPack != null) {
             IconPackManager.loadIconFromPack(context, activeIconPack!!, packageName)
                 ?: try { context.packageManager.getApplicationIcon(packageName) } catch (_: Exception) { null }
         } else {
             try {
-                context.packageManager.getApplicationIcon(packageName)
+                val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+                val activities = launcherApps?.getActivityList(packageName, android.os.Process.myUserHandle())
+                activities?.firstOrNull()?.getIcon(context.resources.displayMetrics.densityDpi)
+                    ?: context.packageManager.getApplicationIcon(packageName)
             } catch (_: Exception) {
                 null
             }
-        } ?: return null
+        }
 
         val density = context.resources.displayMetrics.density
         val targetPx = (52 * density).toInt().coerceIn(96, 160)
-        val bmp = Bitmap.createBitmap(targetPx, targetPx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        drawable.setBounds(0, 0, targetPx, targetPx)
-        drawable.draw(canvas)
-        val imageBmp = bmp.asImageBitmap()
 
-        imageBitmapCache.put(packageName, imageBmp)
+        val bmp = if (drawable != null) {
+            try {
+                val b = Bitmap.createBitmap(targetPx, targetPx, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(b)
+                drawable.setBounds(0, 0, targetPx, targetPx)
+                drawable.draw(canvas)
+
+                // Disk önbelleğine kaydet
+                if (iconFile != null) {
+                    try {
+                        java.io.FileOutputStream(iconFile).use { out ->
+                            b.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
+                    } catch (_: Exception) {}
+                }
+                b
+            } catch (_: Exception) {
+                createFallbackBitmap(packageName, targetPx)
+            }
+        } else {
+            createFallbackBitmap(packageName, targetPx)
+        }
+
+        val imageBmp = bmp.asImageBitmap()
+        imageBitmapCache[packageName] = imageBmp
         return imageBmp
     }
 
+    private fun createFallbackBitmap(packageName: String, sizePx: Int): Bitmap {
+        val b = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(b)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.DKGRAY
+            style = android.graphics.Paint.Style.FILL
+        }
+        canvas.drawCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.textSize = sizePx * 0.42f
+        paint.textAlign = android.graphics.Paint.Align.CENTER
+        val letter = packageName.substringAfterLast(".").firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val yPos = (sizePx / 2f) - ((paint.descent() + paint.ascent()) / 2f)
+        canvas.drawText(letter, sizePx / 2f, yPos, paint)
+        return b
+    }
+
     suspend fun preload(context: Context, apps: List<AppModel>) = withContext(Dispatchers.IO) {
-        val uncached = apps.filter { imageBitmapCache.get(it.packageName) == null }
+        val uncached = apps.filter { imageBitmapCache[it.packageName] == null }
         if (uncached.isEmpty()) return@withContext
 
-        // Maksimum 6 paralel parçalı hızlı önbelleğe alma
-        uncached.chunked(6).forEach { chunk ->
+        // Paralel parçalı hızlı önbelleğe alma (Diskten anında okunur)
+        uncached.chunked(10).forEach { chunk ->
             chunk.map { app ->
                 async {
                     loadAndCache(context, app.packageName)

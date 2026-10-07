@@ -67,26 +67,9 @@ fun StandardGridView(
 ) {
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (source == NestedScrollSource.UserInput && available.y > 45f) {
-                    onExpandNotifications()
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(nestedScrollConnection)
             .padding(horizontal = 8.dp)
     ) {
         // Dinamik Sütun Sayısı ile Saf Uygulama ve Klasör Izgarası (Tamamen homojen 120 FPS)
@@ -101,6 +84,7 @@ fun StandardGridView(
         ) {
             // 0. Saat & Tarih & İsteğe Bağlı Widget Başlığı
             item(
+                key = "clock_header",
                 span = { GridItemSpan(maxLineSpan) },
                 contentType = "clock_header"
             ) {
@@ -113,7 +97,8 @@ fun StandardGridView(
                     ClockHeader(
                         alignment = Alignment.CenterHorizontally,
                         textColor = MaterialTheme.colorScheme.onBackground,
-                        onLongClick = onHomeScreenLongClick
+                        onLongClick = onHomeScreenLongClick,
+                        onSwipeDown = onExpandNotifications
                     )
                     if (pinnedWidgetIds.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -147,7 +132,7 @@ fun StandardGridView(
             items(
                 items = apps,
                 key = { it.packageName },
-                contentType = { 1 }
+                contentType = { "app_grid_item" }
             ) { app ->
                 AppGridItem(
                     app = app,

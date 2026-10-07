@@ -58,7 +58,7 @@ fun HybridView(
         state = pagerState,
         snapAnimationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
+            stiffness = Spring.StiffnessMediumLow
         )
     )
 
@@ -110,27 +110,32 @@ fun HybridView(
             }
         }
 
-        // Sayfa Gösterge Noktaları (Pager Indicator)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            repeat(2) { index ->
-                val isSelected = pagerState.currentPage == index
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(if (isSelected) 16.dp else 6.dp, 6.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
-                        )
-                )
-            }
+        // Sayfa Gösterge Noktaları (Pager Indicator - Ayrı Composable ile Sıfır Recomposition)
+        HybridPagerIndicator(currentPage = pagerState.currentPage)
+    }
+}
+
+@Composable
+private fun HybridPagerIndicator(currentPage: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(2) { index ->
+            val isSelected = currentPage == index
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .size(if (isSelected) 16.dp else 6.dp, 6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
+                    )
+            )
         }
     }
 }

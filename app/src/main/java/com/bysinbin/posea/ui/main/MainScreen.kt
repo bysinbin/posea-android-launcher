@@ -83,12 +83,20 @@ import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.Widgets
 import com.bysinbin.posea.data.system.PoseaNotificationService
 
+private var expandNotificationsMethod: java.lang.reflect.Method? = null
+private var statusBarServiceCache: Any? = null
+private var isStatusBarReflectionInit = false
+
 private fun expandNotificationPanel(context: android.content.Context) {
     try {
-        val statusBarService = context.getSystemService("statusbar")
-        val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
-        val method = statusBarManagerClass.getMethod("expandNotificationsPanel")
-        method.invoke(statusBarService)
+        if (!isStatusBarReflectionInit) {
+            val statusBarService = context.getSystemService("statusbar")
+            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+            expandNotificationsMethod = statusBarManagerClass.getMethod("expandNotificationsPanel")
+            statusBarServiceCache = statusBarService
+            isStatusBarReflectionInit = true
+        }
+        expandNotificationsMethod?.invoke(statusBarServiceCache)
     } catch (_: Exception) {}
 }
 
@@ -291,6 +299,8 @@ fun MainScreen(
         val onRemoveHomeWidget: (Int) -> Unit = remember { { viewModel.removeHomeWidget(it) } }
         val onOpenSettings: () -> Unit = remember { { viewModel.setSettingsOpen(true) } }
         val onExpandNotifications: () -> Unit = remember(context) { { expandNotificationPanel(context) } }
+        val onHomeScreenLongClick: () -> Unit = remember { { isHomeScreenMenuOpen = true } }
+        val onDrawerDismiss: () -> Unit = remember { { viewModel.setDrawerOpen(false) } }
 
         // Kullanıcı tercihine göre seçilen mod görünümü
         when (uiState.preferences.mode) {
@@ -308,7 +318,7 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
+                    onHomeScreenLongClick = onHomeScreenLongClick
                 )
             }
             LauncherMode.STANDARD -> {
@@ -330,7 +340,7 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
+                    onHomeScreenLongClick = onHomeScreenLongClick
                 )
             }
             LauncherMode.HYBRID -> {
@@ -355,7 +365,7 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = { isHomeScreenMenuOpen = true }
+                    onHomeScreenLongClick = onHomeScreenLongClick
                 )
             }
         }
@@ -369,10 +379,10 @@ fun MainScreen(
             iconStyle = uiState.preferences.iconStyle,
             onQueryChange = { viewModel.onSearchQueryChange(it) },
             onAppClick = safeLaunchApp,
-            onAppLongClick = { selectedAppForMenu = it },
+            onAppLongClick = onAppLongClick,
             onToggleFavorite = { viewModel.toggleFavorite(it) },
-            onDismiss = { viewModel.setDrawerOpen(false) },
-            onOpenSettings = { viewModel.setSettingsOpen(true) }
+            onDismiss = onDrawerDismiss,
+            onOpenSettings = onOpenSettings
         )
 
         // Ayarlar İletişim Kutusu
