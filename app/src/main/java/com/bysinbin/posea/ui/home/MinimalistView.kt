@@ -62,6 +62,7 @@ fun MinimalistView(
     onOpenSettings: () -> Unit = {},
     onExpandNotifications: () -> Unit = {},
     onHomeScreenLongClick: () -> Unit = {},
+    onDoubleTapToLock: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -122,6 +123,7 @@ fun MinimalistView(
             textColor = MaterialTheme.colorScheme.onBackground,
             clockStyle = clockStyle,
             onLongClick = onHomeScreenLongClick,
+            onDoubleClick = onDoubleTapToLock,
             onSwipeDown = onExpandNotifications
         )
 

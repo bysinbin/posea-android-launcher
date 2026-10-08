@@ -302,6 +302,25 @@ fun MainScreen(
         val onHomeScreenLongClick: () -> Unit = remember { { isHomeScreenMenuOpen = true } }
         val onDrawerDismiss: () -> Unit = remember { { viewModel.setDrawerOpen(false) } }
 
+        val onDoubleTapToLock: () -> Unit = remember(context) {
+            {
+                val locked = PoseaAccessibilityService.lockScreen()
+                if (!locked) {
+                    Toast.makeText(
+                        context,
+                        "Ekranı kilitlemek için Posea Erişilebilirlik iznini açın",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    try {
+                        val intent = android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
         // Kullanıcı tercihine göre seçilen mod görünümü
         when (uiState.preferences.mode) {
             LauncherMode.MINIMALIST -> {
@@ -319,7 +338,8 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = onHomeScreenLongClick
+                    onHomeScreenLongClick = onHomeScreenLongClick,
+                    onDoubleTapToLock = onDoubleTapToLock
                 )
             }
             LauncherMode.STANDARD -> {
@@ -343,7 +363,8 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = onHomeScreenLongClick
+                    onHomeScreenLongClick = onHomeScreenLongClick,
+                    onDoubleTapToLock = onDoubleTapToLock
                 )
             }
             LauncherMode.HYBRID -> {
@@ -370,7 +391,8 @@ fun MainScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSettings = onOpenSettings,
                     onExpandNotifications = onExpandNotifications,
-                    onHomeScreenLongClick = onHomeScreenLongClick
+                    onHomeScreenLongClick = onHomeScreenLongClick,
+                    onDoubleTapToLock = onDoubleTapToLock
                 )
             }
         }

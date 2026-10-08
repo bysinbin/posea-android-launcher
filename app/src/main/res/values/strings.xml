@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Posea Launcher</string>
+    <string name="accessibility_service_description">Posea Launcher\'ın ekrana çift dokunarak ekranı kilitleyebilmesi için gereklidir.</string>
 </resources>

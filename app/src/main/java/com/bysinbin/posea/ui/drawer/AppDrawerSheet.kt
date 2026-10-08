@@ -124,6 +124,17 @@ fun AppDrawerSheet(
                         .weight(1f)
                         .focusRequester(focusRequester),
                     singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSearch = {
+                            if (filteredApps.isNotEmpty()) {
+                                onAppClick(filteredApps.first())
+                                onDismiss()
+                            }
+                        }
+                    ),
                     placeholder = {
                         Text(
                             text = "Uygulama ara...",

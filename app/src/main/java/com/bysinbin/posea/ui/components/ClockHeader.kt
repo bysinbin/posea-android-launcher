@@ -50,6 +50,11 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bysinbin.posea.data.system.PoseaNotificationService
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -59,6 +64,7 @@ fun ClockHeader(
     textColor: Color = MaterialTheme.colorScheme.onBackground,
     clockStyle: com.bysinbin.posea.model.ClockStyle = com.bysinbin.posea.model.ClockStyle.DIGITAL,
     onLongClick: (() -> Unit)? = null,
+    onDoubleClick: (() -> Unit)? = null,
     onSwipeDown: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -118,6 +124,8 @@ fun ClockHeader(
         batteryInfo = bat
     }
 
+    val currentMediaTrack by PoseaNotificationService.currentTrack.collectAsStateWithLifecycle()
+
     val swipeModifier = if (onSwipeDown != null) {
         Modifier.pointerInput(onSwipeDown) {
             var totalDrag = 0f
@@ -157,6 +165,7 @@ fun ClockHeader(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { openClockApp(context) },
+                    onDoubleClick = onDoubleClick,
                     onLongClick = onLongClick
                 )
             )
@@ -172,6 +181,7 @@ fun ClockHeader(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { openClockApp(context) },
+                    onDoubleClick = onDoubleClick,
                     onLongClick = onLongClick
                 )
             )
@@ -189,11 +199,12 @@ fun ClockHeader(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { openCalendarApp(context) },
+                    onDoubleClick = onDoubleClick,
                     onLongClick = onLongClick
                 )
         )
 
-        // Akıllı Bakış (Smart Glance) Çipleri (Pil & Alarm)
+        // Akıllı Bakış (Smart Glance) Çipleri (Pil & Çalan Medya)
         Row(
             modifier = Modifier.padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -221,6 +232,42 @@ fun ClockHeader(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = textColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
+
+            // Medya Çipi (Now Playing)
+            currentMediaTrack?.let { media ->
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                        .clickable {
+                            try {
+                                context.packageManager.getLaunchIntentForPackage(media.packageName)?.let {
+                                    it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    context.startActivity(it)
+                                }
+                            } catch (_: Exception) {}
+                        }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = "Müzik",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (media.artist.isNotEmpty()) "${media.title} · ${media.artist}" else media.title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 160.dp)
                     )
                 }
             }

@@ -65,6 +65,7 @@ fun StandardGridView(
     onOpenSettings: () -> Unit = {},
     onExpandNotifications: () -> Unit = {},
     onHomeScreenLongClick: () -> Unit = {},
+    onDoubleTapToLock: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
@@ -110,6 +111,7 @@ fun StandardGridView(
                         textColor = MaterialTheme.colorScheme.onBackground,
                         clockStyle = clockStyle,
                         onLongClick = onHomeScreenLongClick,
+                        onDoubleClick = onDoubleTapToLock,
                         onSwipeDown = onExpandNotifications
                     )
                     if (pinnedWidgetIds.isNotEmpty()) {
