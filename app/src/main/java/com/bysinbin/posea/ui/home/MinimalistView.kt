@@ -118,7 +118,7 @@ fun MinimalistView(
 
         // Saat & Tarih (Dijital veya BCD)
         ClockHeader(
-            alignment = Alignment.Start,
+            alignment = Alignment.CenterHorizontally,
             textColor = MaterialTheme.colorScheme.onBackground,
             clockStyle = clockStyle,
             onLongClick = onHomeScreenLongClick,

@@ -748,9 +748,7 @@ fun SettingsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (!isDefaultLauncher) {
-                                LauncherHelper.requestDefaultLauncher(context)
-                            }
+                            LauncherHelper.requestDefaultLauncher(context)
                         }
                 ) {
                     Row(
@@ -766,25 +764,23 @@ fun SettingsDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isDefaultLauncher) "Varsayılan Launcher Aktif" else "Varsayılan Launcher Yap",
+                                text = if (isDefaultLauncher) "Varsayılan Başlatıcı Ayarı" else "Varsayılan Launcher Yap",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (isDefaultLauncher) "Posea birincil ana ekranınız." else "Her zaman Posea'yı açmak için dokunun.",
+                                text = if (isDefaultLauncher) "Varsayılan ana ekranı yönetmek veya değiştirmek için dokunun." else "Her zaman Posea'yı açmak için dokunun.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (!isDefaultLauncher) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
