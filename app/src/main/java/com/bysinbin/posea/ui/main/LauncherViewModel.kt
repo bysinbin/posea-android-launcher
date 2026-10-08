@@ -277,6 +277,12 @@ class LauncherViewModel @JvmOverloads constructor(
         }
     }
 
+    fun updateFolderApps(folderId: String, packageNames: List<String>) {
+        viewModelScope.launch {
+            preferencesRepository.updateFolderApps(folderId, packageNames)
+        }
+    }
+
     fun resetOnboarding() {
         viewModelScope.launch {
             preferencesRepository.resetOnboarding()

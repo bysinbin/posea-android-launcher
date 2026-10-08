@@ -69,6 +69,15 @@ fun StandardGridView(
 ) {
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
+    // Klasörlere dahil edilmiş uygulama paketleri kümesi (Klasördeki uygulamalar ana listede tekrar görünmez)
+    val folderAppPackages = remember(folders) {
+        folders.flatMap { it.packageNames }.toSet()
+    }
+    val standaloneApps = remember(apps, folderAppPackages) {
+        if (folderAppPackages.isEmpty()) apps
+        else apps.filterNot { folderAppPackages.contains(it.packageName) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -131,9 +140,9 @@ fun StandardGridView(
                 )
             }
 
-            // 2. Uygulama İkonları Izgarası (Seçilen sütun sayısı, 100% Atlanabilir / Skippable)
+            // 2. Uygulama İkonları Izgarası (Klasörde yer almayan bağımsız uygulamalar, 100% Atlanabilir / Skippable)
             items(
-                items = apps,
+                items = standaloneApps,
                 key = { it.packageName },
                 contentType = { "app_grid_item" }
             ) { app ->

@@ -291,6 +291,17 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateFolderApps(folderId: String, packageNames: List<String>) {
+        context.dataStore.edit { preferences ->
+            val current = parseFolders(preferences[Keys.FOLDERS_JSON] ?: "").map {
+                if (it.id == folderId) {
+                    it.copy(packageNames = packageNames.distinct())
+                } else it
+            }
+            preferences[Keys.FOLDERS_JSON] = serializeFolders(current)
+        }
+    }
+
     suspend fun setLauncherMode(mode: LauncherMode) {
         context.dataStore.edit { preferences ->
             preferences[Keys.MODE] = mode.name

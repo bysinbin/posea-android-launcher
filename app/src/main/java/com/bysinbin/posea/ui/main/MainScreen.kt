@@ -860,7 +860,7 @@ fun MainScreen(
                     activeFolder = null
                 },
                 onAddAppsToFolder = { newPackages ->
-                    newPackages.forEach { pkg -> viewModel.addAppToFolder(currentFolder.id, pkg) }
+                    viewModel.updateFolderApps(currentFolder.id, newPackages)
                 },
                 onRemoveAppFromFolder = { pkg ->
                     viewModel.removeAppFromFolder(currentFolder.id, pkg)
