@@ -214,6 +214,12 @@ class LauncherViewModel @JvmOverloads constructor(
         }
     }
 
+    fun setForceFullScreenGestures(enable: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setForceFullScreenGestures(enable)
+        }
+    }
+
     fun completeOnboarding(mode: LauncherMode, iconStyle: IconStyle, favorites: Set<String>) {
         viewModelScope.launch {
             preferencesRepository.completeOnboarding(mode, iconStyle, favorites)

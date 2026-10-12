@@ -431,6 +431,7 @@ fun MainScreen(
             onRestorePreferences = { viewModel.restorePreferences(it) },
             onResetOnboarding = { viewModel.resetOnboarding() },
             onAddHomeWidgetClick = onAddHomeWidget,
+            onForceFullScreenGesturesChange = { viewModel.setForceFullScreenGestures(it) },
             onDismiss = { viewModel.setSettingsOpen(false) }
         )
 

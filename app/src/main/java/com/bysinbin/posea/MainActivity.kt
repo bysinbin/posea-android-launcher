@@ -43,4 +43,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        com.bysinbin.posea.data.system.GestureNavigationHelper.ensureGesturesIfEnabled(
+            this,
+            viewModel.uiState.value.preferences.forceFullScreenGestures
+        )
+    }
 }

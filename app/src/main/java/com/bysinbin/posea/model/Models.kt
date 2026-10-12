@@ -108,7 +108,8 @@ data class UserPreferences(
     val selectedIconPackPackage: String? = null,
     val showNotificationBadges: Boolean = true,
     val lockedPackages: Set<String> = emptySet(),
-    val hideAppLabels: Boolean = false
+    val hideAppLabels: Boolean = false,
+    val forceFullScreenGestures: Boolean = false
 )
 
 /**

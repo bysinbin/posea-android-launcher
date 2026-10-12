@@ -43,6 +43,7 @@ class PreferencesRepository(private val context: Context) {
         val NOTIFICATION_BADGES = booleanPreferencesKey("notification_badges")
         val LOCKED_PACKAGES = stringSetPreferencesKey("locked_packages")
         val HIDE_APP_LABELS = booleanPreferencesKey("hide_app_labels")
+        val FORCE_FULL_SCREEN_GESTURES = booleanPreferencesKey("force_full_screen_gestures")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { preferences ->
@@ -60,6 +61,7 @@ class PreferencesRepository(private val context: Context) {
         val iconPack = preferences[Keys.ICON_PACK_PACKAGE]
         val showBadges = preferences[Keys.NOTIFICATION_BADGES] ?: true
         val hideLabels = preferences[Keys.HIDE_APP_LABELS] ?: false
+        val forceGestures = preferences[Keys.FORCE_FULL_SCREEN_GESTURES] ?: false
 
         val widgetIdsRaw = preferences[Keys.PINNED_WIDGET_IDS] ?: ""
         val widgetIds = if (widgetIdsRaw.isBlank()) emptyList() else widgetIdsRaw.split(",").mapNotNull { it.toIntOrNull() }
@@ -107,8 +109,16 @@ class PreferencesRepository(private val context: Context) {
             isDynamicTheme = isDynamic,
             selectedIconPackPackage = iconPack,
             showNotificationBadges = showBadges,
-            hideAppLabels = hideLabels
+            hideAppLabels = hideLabels,
+            forceFullScreenGestures = forceGestures
         )
+    }
+
+    suspend fun setForceFullScreenGestures(enable: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.FORCE_FULL_SCREEN_GESTURES] = enable
+        }
+        com.bysinbin.posea.data.system.GestureNavigationHelper.setFullScreenGesturesForced(context, enable)
     }
 
     suspend fun setHideAppLabels(hide: Boolean) {

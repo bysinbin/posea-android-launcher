@@ -1,6 +1,7 @@
 package com.bysinbin.posea.ui.settings
 
 import android.app.Activity
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Widgets
+import com.bysinbin.posea.data.system.GestureNavigationHelper
 import com.bysinbin.posea.data.system.PoseaAccessibilityService
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -95,6 +97,7 @@ fun SettingsDialog(
     onRestorePreferences: (UserPreferences) -> Unit = {},
     onResetOnboarding: () -> Unit,
     onAddHomeWidgetClick: () -> Unit = {},
+    onForceFullScreenGesturesChange: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     if (!isOpen) return
@@ -103,9 +106,11 @@ fun SettingsDialog(
     val lifecycleOwner = LocalLifecycleOwner.current
     var isDefaultLauncher by remember { mutableStateOf(LauncherHelper.isDefaultLauncher(context)) }
     var hasNotificationAccess by remember { mutableStateOf(PoseaNotificationService.isNotificationAccessGranted(context)) }
+    var hasSecureSettings by remember { mutableStateOf(GestureNavigationHelper.hasSecureSettingsPermission(context)) }
     var isHiddenAppsOpen by remember { mutableStateOf(false) }
     var isLockedAppsOpen by remember { mutableStateOf(false) }
     var isRestoreDialogOpen by remember { mutableStateOf(false) }
+    var isAdbHelpDialogOpen by remember { mutableStateOf(false) }
     var restoreInputText by remember { mutableStateOf("") }
 
     DisposableEffect(lifecycleOwner) {
@@ -113,6 +118,7 @@ fun SettingsDialog(
             if (event == Lifecycle.Event.ON_RESUME) {
                 isDefaultLauncher = LauncherHelper.isDefaultLauncher(context)
                 hasNotificationAccess = PoseaNotificationService.isNotificationAccessGranted(context)
+                hasSecureSettings = GestureNavigationHelper.hasSecureSettingsPermission(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -199,6 +205,114 @@ fun SettingsDialog(
             dismissButton = {
                 TextButton(onClick = { isRestoreDialogOpen = false }) {
                     Text("İptal")
+                }
+            }
+        )
+    }
+
+    if (isAdbHelpDialogOpen) {
+        val grantCmd = GestureNavigationHelper.getAdbGrantCommand(context)
+        val forceCmd = GestureNavigationHelper.getAdbForceCommand()
+        AlertDialog(
+            onDismissRequest = { isAdbHelpDialogOpen = false },
+            title = {
+                Text(
+                    text = "Xiaomi Tam Ekran Hareketleri",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Xiaomi / HyperOS, üçüncü taraf başlatıcılarda hareketleri kilitler. Tüm uygulamalarda (WhatsApp, Chrome vb.) 3 tuşu kaldırıp orijinal hareketleri açmak için tek seferlik ADB izni verin:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "1. Yöntem: Posea'ya İzin Ver (Önerilen)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = grantCmd,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Button(
+                                onClick = {
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    cm.setPrimaryClip(ClipData.newPlainText("ADB Command", grantCmd))
+                                    Toast.makeText(context, "İzin komutu panoya kopyalandı!", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("İzin Kodunu Kopyala", fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "2. Yöntem: Doğrudan Açma Kodu",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = forceCmd,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    cm.setPrimaryClip(ClipData.newPlainText("ADB Command", forceCmd))
+                                    Toast.makeText(context, "Doğrudan açma kodu kopyalandı!", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Açma Kodunu Kopyala", fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "İpucu: Bilgisayarınız yoksa telefonunuza Shizuku ve aShell uygulamalarını kurarak kablosuz hata ayıklama ile doğrudan telefon üzerinden de bu komutu çalıştırabilirsiniz.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { isAdbHelpDialogOpen = false }) {
+                    Text("Tamam")
                 }
             }
         )
@@ -626,6 +740,63 @@ fun SettingsDialog(
                                 text = if (isAccessibilityEnabled) "Aktif · Saate veya boş alana çift dokunarak kilitleyin" else "Erişilebilirlik izni gerekli · Açmak için dokunun",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isAccessibilityEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = DividerDefaults.color.copy(alpha = 0.5f)
+                )
+
+                // Tam Ekran Hareketleri (Xiaomi / HyperOS)
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (!hasSecureSettings) {
+                                isAdbHelpDialogOpen = true
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TouchApp,
+                            contentDescription = null,
+                            tint = if (hasSecureSettings && preferences.forceFullScreenGestures) MaterialTheme.colorScheme.primary else if (!hasSecureSettings) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Tam Ekran Hareketleri (Xiaomi)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = if (hasSecureSettings) {
+                                    if (preferences.forceFullScreenGestures) {
+                                        "Aktif · Tüm uygulamalarda 3 tuş gizli, hareketler açık"
+                                    } else {
+                                        "Devre Dışı · Açmak için anahtarı kullanın"
+                                    }
+                                } else {
+                                    "Yetki Gerekli (ADB) · 3 tuşu kaldırmak için dokunun"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (hasSecureSettings) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (hasSecureSettings) {
+                            Switch(
+                                checked = preferences.forceFullScreenGestures,
+                                onCheckedChange = { onForceFullScreenGesturesChange(it) }
                             )
                         }
                     }
